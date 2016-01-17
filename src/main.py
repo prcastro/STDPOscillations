@@ -36,15 +36,15 @@ def masquelier(simTime=0.5*second, N=2000, psp=0.8*mV, tau=20*msecond, V0=-55*mV
     run(simTime)
     # Measurements
     # Return/plot/save the data
-    raster = figure(1)
+    raster_voltage = figure(1)
+    subplot(2,1,1)
     raster_plot(spikes)
-    raster.show()
-    voltage = figure(2)
+    subplot(2,1,2)
     plot(voltimeter.times/ms, voltimeter[0]/mV)
     xlabel('Time (in ms)')
     ylabel('Membrane potential (in mV)')
     title('Membrane potential for neuron 0')
-    voltage.show()
+    raster_voltage.show()
 
 if __name__ == "__main__":
     masquelier()
