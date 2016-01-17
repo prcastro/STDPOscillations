@@ -13,7 +13,7 @@ from brian import *
 # [ ] Parameter search
 # [ ] Introduce more patterns
 
-def masquelier(simTime=0.5*second, N=2000, psp=1.4*mV, tau=20*msecond, Vt=-54*mV, Vr=-62*mV, El=-60*mV, R=(10**4)*ohm, oscilFreq=8, constCurrent=40*namp):
+def masquelier(simTime=0.5*second, N=2000, psp=1.4*mV, tau=20*msecond, Vt=-54*mV, Vr=-60*mV, El=-60*mV, R=(10**4)*ohm, oscilFreq=8):
     '''This file executes the simulations (given the parameters),
     of Masquelier's model for learning and saves the results in
     appropriate files.'''
@@ -22,9 +22,14 @@ def masquelier(simTime=0.5*second, N=2000, psp=1.4*mV, tau=20*msecond, Vt=-54*mV
     dt = defaultclock.dt
     total_steps = float(simTime/dt)
 
+    #Size of noise and of drives
+    sigma = 0.015*(Vt-Vr)
+    Ithr  = ((Vt - El)/R)
+    constCurrent = 0.98* Ithr
+
     # Neural Model
     neuronEquations =  Equations('''
-    dV/dt = -(V-El-R*I)/tau : volt
+    dV/dt = -(V-El-R*I)/tau + sigma*xi/(tau**0.5): volt
     I : amp
     ''')
 
@@ -33,13 +38,13 @@ def masquelier(simTime=0.5*second, N=2000, psp=1.4*mV, tau=20*msecond, Vt=-54*mV
     inputLayer.V = Vr + rand(N)*(Vt - Vr) # Initial voltage
 
     # Stablish drives
-    oscilAmp = 0.15*((Vt - El)/R)
-    inputLayer.I = TimedArray((oscilAmp/2)*sin(2*pi*dt*oscilFreq*arange(total_steps)) + constCurrent)
-    neuron_poisson = PoissonGroup(N, rates=40*Hz)
+    oscilAmp = 0.15*Ithr
+    inputLayer.I = TimedArray((oscilAmp/2)*sin(2*pi*dt*oscilFreq*arange(total_steps) - pi/2) + constCurrent)
 
+    #neuron_poisson = PoissonGroup(N, rates=40*Hz)
     # Connect groups
-    inputDrive = Connection(neuron_poisson, inputLayer)
-    inputDrive.connect_one_to_one(neuron_poisson, inputLayer, weight=psp)
+    #inputDrive = Connection(neuron_poisson, inputLayer)
+    #inputDrive.connect_one_to_one(neuron_poisson, inputLayer, weight=psp)
 
     # Mesurement devices
     spikes = SpikeMonitor(inputLayer)
