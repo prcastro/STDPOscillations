@@ -45,7 +45,6 @@ def masquelier(simTime=0.5*second, N=2000, psp=1.4*mV, tau=20*msecond, V0=-55*mV
     run(simTime)
     # Measurements
     # Return/plot/save the data
-    figure(2)
     raster_voltage = figure(1)
     subplot(2,1,1)
     raster_plot(spikes)
