@@ -29,22 +29,22 @@ def masquelier(simTime=0.5*second, N=2000, psp=1.4*mV, tau=20*msecond, Vt=-54*mV
     ''')
 
     # Create neuron groups and set initial conditions
-    inputSilent = NeuronGroup(N=N, model=neuronEquations, threshold=Vt, reset=Vr)
-    inputSilent.V = Vr + rand(N)*(Vt - Vr) # Initial voltage
+    inputLayer = NeuronGroup(N=N, model=neuronEquations, threshold=Vt, reset=Vr)
+    inputLayer.V = Vr + rand(N)*(Vt - Vr) # Initial voltage
 
     # Stablish drives
     oscilAmp = 0.15*((Vt - El)/R)
-    inputSilent.I = TimedArray((oscilAmp/2)*sin(2*pi*dt*oscilFreq*arange(total_steps)) + constCurrent)
+    inputLayer.I = TimedArray((oscilAmp/2)*sin(2*pi*dt*oscilFreq*arange(total_steps)) + constCurrent)
     neuron_poisson = PoissonGroup(N, rates=40*Hz)
 
     # Connect groups
-    inputDrive = Connection(neuron_poisson, inputSilent)
-    inputDrive.connect_one_to_one(neuron_poisson, inputSilent, weight=psp)
+    inputDrive = Connection(neuron_poisson, inputLayer)
+    inputDrive.connect_one_to_one(neuron_poisson, inputLayer, weight=psp)
 
     # Mesurement devices
-    spikes = SpikeMonitor(inputSilent)
-    voltimeter = StateMonitor(inputSilent, 'V', record=0)
-    amperimeter = StateMonitor(inputSilent, 'I', record=0)
+    spikes = SpikeMonitor(inputLayer)
+    voltimeter = StateMonitor(inputLayer, 'V', record=0)
+    amperimeter = StateMonitor(inputLayer, 'I', record=0)
 
     # Run the simulation
     run(simTime)
