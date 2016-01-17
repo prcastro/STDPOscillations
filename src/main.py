@@ -3,7 +3,7 @@ import numpy as np
 
 # TODO
 # [*] record 2000 neurons spiking with constant drive
-# [ ] sinusoidal drive
+# [*] sinusoidal drive
 # [ ] stimulus
 # [ ] synapse input layer -> output layer
 # [ ] Record voltage of output layer
@@ -47,8 +47,7 @@ def masquelier(simTime=0.5*second, N=2000, psp=1.4*mV, tau=20*msecond, Vt=-54*mV
     # Run the simulation
     run(simTime)
 
-    # Measurements
-    # Return/plot/save the data
+    # Ploting
     raster_voltage = figure(1)
     subplot(2,1,1)
     raster_plot(spikes)
