@@ -1,5 +1,5 @@
 from brian import *
-import numpy as np
+# import numpy as np
 
 # TODO
 # [*] record 2000 neurons spiking with constant drive
@@ -13,7 +13,7 @@ import numpy as np
 # [ ] Parameter search
 # [ ] Introduce more patterns
 
-def masquelier(simTime=0.5*second, N=2000, psp=1.4*mV, tau=20*msecond, Vt=-54*mV, Vr=-62*mV, El=-60*mV, oscilFreq = 8, oscilAmp = 0.004):
+def masquelier(simTime=0.5*second, N=2000, psp=1.4*mV, tau=20*msecond, Vt=-54*mV, Vr=-62*mV, El=-60*mV, R=(10**4)*ohm, oscilFreq=8, constCurrent=40*namp):
     '''This file executes the simulations (given the parameters),
     of Masquelier's model for learning and saves the results in
     appropriate files.'''
@@ -24,17 +24,18 @@ def masquelier(simTime=0.5*second, N=2000, psp=1.4*mV, tau=20*msecond, Vt=-54*mV
 
     # Neural Model
     neuronEquations =  Equations('''
-    dV/dt = -(V-El-I)/tau : volt
-    I : volt
+    dV/dt = -(V-El-R*I)/tau : volt
+    I : amp
     ''')
 
     # Create neuron groups and set initial conditions
     inputSilent = NeuronGroup(N=N, model=neuronEquations, threshold=Vt, reset=Vr)
-    inputSilent.V = Vr + rand(N)*(Vt - Vr)
+    inputSilent.V = Vr + rand(N)*(Vt - Vr) # Initial voltage
 
     # Stablish drives
-    inputSilent.I = TimedArray(oscilAmp*cos(2*pi*dt*oscilFreq*arange(total_steps)))
-    neuron_poisson = PoissonGroup(N, rates=20*Hz)
+    oscilAmp = 0.15*((Vt - El)/R)
+    inputSilent.I = TimedArray((oscilAmp/2)*sin(2*pi*dt*oscilFreq*arange(total_steps)) + constCurrent)
+    neuron_poisson = PoissonGroup(N, rates=40*Hz)
 
     # Connect groups
     inputDrive = Connection(neuron_poisson, inputSilent)
@@ -43,11 +44,12 @@ def masquelier(simTime=0.5*second, N=2000, psp=1.4*mV, tau=20*msecond, Vt=-54*mV
     # Mesurement devices
     spikes = SpikeMonitor(inputSilent)
     voltimeter = StateMonitor(inputSilent, 'V', record=0)
+    amperimeter = StateMonitor(inputSilent, 'I', record=0)
 
     # Run the simulation
     run(simTime)
 
-    # Ploting
+    # Plot raster + voltage of neuron 0
     raster_voltage = figure(1)
     subplot(2,1,1)
     raster_plot(spikes)
@@ -57,6 +59,14 @@ def masquelier(simTime=0.5*second, N=2000, psp=1.4*mV, tau=20*msecond, Vt=-54*mV
     ylabel('Membrane potential (in mV)')
     title('Membrane potential for neuron 0')
     raster_voltage.show()
+
+    # Plot current at neuron 0 (for debugging purposes, delete after pattern is included)
+    current = figure(2)
+    plot(amperimeter.times/ms, amperimeter[0]/namp)
+    xlabel('Time (in ms)')
+    ylabel('Current (in nA)')
+    title('Current drive for neuron 0')
+    current.show()
 
 if __name__ == "__main__":
     masquelier()
