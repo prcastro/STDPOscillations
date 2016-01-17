@@ -13,19 +13,10 @@ import numpy as np
 # 9) Parameter search
 # 10) Introduce more patterns
 
-def masquelier( simTime =    0.5 * second,    N       = 2000 ,    psp     =    0.8 * mV ,    tau     =   20   * msecond ,    V0      =  -55   * mV  ,    Vt      =  -50   * mV  ,    Vr      =  -60   * mV  ,    El      =  -51   * mV ):
+def masquelier(simTime=0.5*second, N=2000, psp=0.8*mV, tau=20*msecond, V0=-55*mV, Vt=-50*mV, Vr=-60*mV, El=-51*mV):
     '''This file executes the simulations (given the parameters),
     of Masquelier's model for learning and saves the results in
     appropriate files.'''
-    # Model parameters (some of these will end up as arguments of this function)
-#    simTime =    0.5 * second  # Duration of the simulation
-#    N       = 2000             # Number of input neurons
-#    psp     =    0.8 * mV      # Post-Synaptic Potential
-#    tau     =   20   * msecond # membrane time constant
-#    V0      =  -55   * mV      # Initial voltage
-#    Vt      =  -50   * mV      # spike threshold
-#    Vr      =  -60   * mV      # reset value
-#    El      =  -51   * mV      # resting potential (same as the reset)
     # Neural Model
     neuronEquations =  Equations('''
     dV/dt = -(V-El)/tau : volt
@@ -54,7 +45,6 @@ def masquelier( simTime =    0.5 * second,    N       = 2000 ,    psp     =    0
     ylabel('Membrane potential (in mV)')
     title('Membrane potential for neuron 0')
     voltage.show()
-
 
 if __name__ == "__main__":
     masquelier()
