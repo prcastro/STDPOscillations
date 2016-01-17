@@ -13,37 +13,31 @@ import numpy as np
 # 9) Parameter search
 # 10) Introduce more patterns
 
-def masquelier( simTime = 0.5*second,   N = 2000 ,    psp = 3*mV ,    tau  = 20*msecond ,    V0 = -55*mV  ,    Vt  = -54*mV  ,    Vr = -65*mV  ,    El  = -60*mV, oscilFreq = 0, oscilAmp = 1):
+def masquelier(simTime=0.5*second, N=2000, psp=1.4*mV, tau=20*msecond, V0=-55*mV, Vt=-54*mV, Vr=-62*mV, El=-60*mV, oscilFreq = 8, oscilAmp = 0.004):
+
     '''This file executes the simulations (given the parameters),
     of Masquelier's model for learning and saves the results in
     appropriate files.'''
-    # Model parameters (some of these will end up as arguments of this function)
-#    simTime =    0.5 * second  # Duration of the simulation
-#    N       = 2000             # Number of input neurons
-#    psp     =    0.8 * mV      # Post-Synaptic Potential
-#    tau     =   20   * msecond # membrane time constant
-#    V0      =  -55   * mV      # Initial voltage
-#    Vt      =  -50   * mV      # spike threshold
-#    Vr      =  -60   * mV      # reset value
-#    El      =  -51   * mV      # resting potential (same as the reset)
     # Neural Model
-    oscilString = "I ="+ str(oscilAmp) +"*sin(pi/2 +"+str(oscilFreq)+"*t) : volt"
+    dt = defaultclock.dt
+    total_steps = float(simTime/dt)
 
     neuronEquations =  Equations('''
-    dV/dt = I -(V-El)/tau : volt
-    '''+ oscilString)
+    dV/dt = -(V-El-I)/tau : volt
+    I : volt
+    ''')
 
     # Create neuron groups and set initial conditions
     inputSilent = NeuronGroup(N=N, model=neuronEquations, threshold=Vt, reset=Vr)
-    inputSilent.V = Vr + rand(N)*(Vt - Vr)#V0*ones(N)
+    inputSilent.V = Vr + rand(N)*(Vt - Vr) #V0*ones(N)
     # Stablish drive
-    poisson = PoissonGroup(N,rates=15*Hz)
-    #oscil_drive =
+    neuron_poisson = PoissonGroup(N,rates=20*Hz)
+    #oscillatory drive:
+    inputSilent.I = TimedArray( oscilAmp*cos( 2*pi*dt*oscilFreq*arange(total_steps) ) )
 
     # Connect groups
-    inputDrive = Connection(poisson, inputSilent)
-    inputDrive.connect_one_to_one(poisson, inputSilent, weight=psp)
-
+    inputDrive = Connection(neuron_poisson, inputSilent)
+    inputDrive.connect_one_to_one(neuron_poisson, inputSilent, weight=psp)
     # Mesurement devices
     spikes = SpikeMonitor(inputSilent)
     voltimeter = StateMonitor(inputSilent, 'V', record=0)
@@ -51,16 +45,16 @@ def masquelier( simTime = 0.5*second,   N = 2000 ,    psp = 3*mV ,    tau  = 20*
     run(simTime)
     # Measurements
     # Return/plot/save the data
-    raster = figure(1)
+    figure(2)
+    raster_voltage = figure(1)
+    subplot(2,1,1)
     raster_plot(spikes)
-    raster.show()
-    voltage = figure(2)
+    subplot(2,1,2)
     plot(voltimeter.times/ms, voltimeter[0]/mV)
     xlabel('Time (in ms)')
     ylabel('Membrane potential (in mV)')
     title('Membrane potential for neuron 0')
-    voltage.show()
-
+    raster_voltage.show()
 
 if __name__ == "__main__":
     masquelier()
