@@ -21,25 +21,29 @@ def masquelier(simTime=0.5*second, N=2000, psp=1.4*mV, tau=20*msecond, Vt=-54*mV
     # Default timestep and number of steps
     dt = defaultclock.dt
     total_steps = float(simTime/dt)
-
+    Nconst_curr=20
     #Size of noise and of drives
     sigma = 0.015*(Vt-Vr)
     Ithr  = ((Vt - El)/R)
-    constCurrent = 0.98* Ithr
 
     # Neural Model
     neuronEquations =  Equations('''
-    dV/dt = -(V-El-R*I)/tau + sigma*xi/(tau**0.5): volt
-    I : amp
+    dV/dt = -(V-El-R*(I+cI))/tau + sigma*xi/(tau**0.5): volt
+    I  : amp
+    cI : amp
     ''')
 
     # Create neuron groups and set initial conditions
     inputLayer = NeuronGroup(N=N, model=neuronEquations, threshold=Vt, reset=Vr)
     inputLayer.V = Vr + rand(N)*(Vt - Vr) # Initial voltage
 
-    # Stablish drives
+    # Stablish oscillatory drive
     oscilAmp = 0.15*Ithr
-    inputLayer.I = TimedArray((oscilAmp/2)*sin(2*pi*dt*oscilFreq*arange(total_steps) - pi/2) + constCurrent)
+    inputLayer.I = TimedArray((oscilAmp/2)*sin(2*pi*dt*oscilFreq*arange(total_steps) - pi/2))
+
+    #Setting constant drives between .95 and 1.07 * Ithr
+    for i in range(N):
+        inputLayer[i].cI = (rand()*0.12 + 0.95)*Ithr
 
     #neuron_poisson = PoissonGroup(N, rates=40*Hz)
     # Connect groups
@@ -72,6 +76,6 @@ def masquelier(simTime=0.5*second, N=2000, psp=1.4*mV, tau=20*msecond, Vt=-54*mV
     ylabel('Current (in nA)')
     title('Current drive for neuron 0')
     current.show()
-
+    return inputLayer
 if __name__ == "__main__":
-    masquelier()
+    inputLayer =masquelier()
