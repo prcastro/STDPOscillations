@@ -1,4 +1,5 @@
 from brian import *
+from patterns import *
 # import numpy as np
 
 # TODO
@@ -13,7 +14,7 @@ from brian import *
 # [ ] Parameter search
 # [ ] Introduce more patterns
 
-def masquelier(simTime=0.5*second, N=2000, psp=1.4*mV, tau=20*msecond, Vt=-54*mV, Vr=-60*mV, El=-60*mV, R=(10**4)*ohm, oscilFreq=8):
+def masquelier(simTime=0.5* second, N=2000, psp=1.4*mV, tau=20*msecond, Vt=-54*mV, Vr=-60*mV, El=-60*mV, R=(10**4)*ohm, oscilFreq=8):
     '''This file executes the simulations (given the parameters),
     of Masquelier's model for learning and saves the results in
     appropriate files.'''
@@ -42,9 +43,11 @@ def masquelier(simTime=0.5*second, N=2000, psp=1.4*mV, tau=20*msecond, Vt=-54*mV
     inputLayer.I = TimedArray((oscilAmp/2)*sin(2*pi*dt*oscilFreq*arange(total_steps) - pi/2))
 
     #Setting constant drives between .95 and 1.07 * Ithr
-    for i in range(N):
-        inputLayer[i].cI = (rand()*0.12 + 0.95)*Ithr
-
+    print('Making patterns')
+    inputLayer = patterns(inputLayer, simTime, 500, (.95*Ithr,1.07*Ithr))
+    print('Patterns are ready')
+    #for i in range(N):
+    #    inputLayer[i].cI = ((rand())*0.12 + 0.95)*Ithr
     #neuron_poisson = PoissonGroup(N, rates=40*Hz)
     # Connect groups
     #inputDrive = Connection(neuron_poisson, inputLayer)
@@ -77,5 +80,7 @@ def masquelier(simTime=0.5*second, N=2000, psp=1.4*mV, tau=20*msecond, Vt=-54*mV
     title('Current drive for neuron 0')
     current.show()
     return inputLayer
+
+
 if __name__ == "__main__":
     inputLayer =masquelier()
