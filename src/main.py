@@ -43,12 +43,9 @@ def masquelier(simTime=0.5* second, N=2000, psp=1.4*mV, tau=20*msecond, Vt=-54*m
     inputLayer.I = TimedArray((oscilAmp/2)*sin(2*pi*dt*oscilFreq*arange(total_steps) - pi/2))
 
     #Setting constant drives between .95 and 1.07 * Ithr
-    print('Making patterns')
-    inputLayer = patterns(inputLayer, simTime, 500, (.95*Ithr,1.07*Ithr))
-    print('Patterns are ready')
-    #for i in range(N):
-    #    inputLayer[i].cI = ((rand())*0.12 + 0.95)*Ithr
-    #neuron_poisson = PoissonGroup(N, rates=40*Hz)
+    for i in range(N):
+       inputLayer[i].cI = ((rand())*0.12 + 0.95)*Ithr
+    neuron_poisson = PoissonGroup(N, rates=40*Hz)
     # Connect groups
     #inputDrive = Connection(neuron_poisson, inputLayer)
     #inputDrive.connect_one_to_one(neuron_poisson, inputLayer, weight=psp)
