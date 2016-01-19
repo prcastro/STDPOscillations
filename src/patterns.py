@@ -1,23 +1,45 @@
-from brian import *
-def patterns(ngroup, simTime, Npatt_neurons, act_lims, Npats=1):
-    '''This function changes cI values of a given group of neurons,
+def activationLevels(numNeurons):
+    '''This function provides the activation levels matrix for all neurons.
+    It returns a TimedArray, with the activation level of one neuron over time in
+    each row. Each column is associated with a random time interval (equal between
+    neurons), that is drawn from a exponential distribution with mean 250ms.
 
-    '''
+    This actiivation matrix is mapped into the input layer's current inputs.
+
+    Reference: Masquelier et al 2009 Figure 1'''
+
+    # Time array for the activation level TimedArray
+    timeArray = []
+    t = 0
+    while t < 10000:
+        timeArray.append(t*msecond)
+        t += np.random.exponential(250)
+    timeArray.append(10*second)
+
+    # Activation matrix
+    activation = rand(numNeurons, len(timeArray))
+
+    return TimedArray(activation, timeArray)
+
+def patterns(ngroup, simTime, Npatt_neurons, act_lims, Npats=1):
+    '''This function changes cI values of a given group of neurons'''
+
     N = len(ngroup)
     #pat_neurons=range(Npatt_neurons) #the first Npatt_neurons are the ones related to the pattern
-    pat_act = [ [(2*i)*(act_lims[1]-act_lims[0])+act_lims[0] for j in range(Npatt_neurons)] for i in range(Npats) ]
+    pat_act = [[(2*i)*(act_lims[1] - act_lims[0]) + act_lims[0] for j in range(Npatt_neurons)] for i in range(Npats)]
+
     # After getting results = masquelier, use this:
     ###############
     pat_neurons = [ [ [] for j in range(Npatt_neurons) ] for i in range(Npats)]
     for i in range(Npats):
-        pat_neurons[i][:] = range(i*Npatt_neurons,(i+1)*Npatt_neurons)#randint(0,N,Npatt_neurons)
+        pat_neurons[i][:] = range(i*Npatt_neurons,(i+1)*Npatt_neurons) # randint(0,N,Npatt_neurons)
     pat_neurons=array(pat_neurons)
     print(pat_neurons)
     ###############
 
     # 250 is the mean of the exp. distribution, and //100 is the number of 100ms steps needed to reach simTim
-    Nsteps= 4# int(simTime/ms)//100 #number of change steps calculated
-    Npatstep = Nsteps#//5 #number of pattern steps calculated
+    Nsteps = 4 # int(simTime/ms)//100 #number of change steps calculated
+    Npatstep = Nsteps #//5 #number of pattern steps calculated
 
     #timesteps = exponential(100, Nsteps)
     #patsteps = exponential(50, Npatstep)
