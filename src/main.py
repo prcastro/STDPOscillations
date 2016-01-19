@@ -1,11 +1,9 @@
 from brian import *
-from patterns import *
-# import numpy as np
 
 # TODO
 # [*] record 2000 neurons spiking with constant drive
 # [*] sinusoidal drive
-# [ ] stimulus
+# [*] stimulus
 # [ ] synapse input layer -> output layer
 # [ ] Record voltage of output layer
 # [ ] STDP
@@ -13,6 +11,73 @@ from patterns import *
 # [ ] More realistic model of CA1
 # [ ] Parameter search
 # [ ] Introduce more patterns
+
+def plotActivations(values, times, pattern_presence):
+    N = len(values[0])
+    discrete_actv=[[] for i in range(N)]
+    presence = [[] for i in range(20)]
+    for n in range(N):
+        for ti in range(1,len(times)):
+            t = times[ti-1]
+            while t < times[ti]:
+                discrete_actv[n] += [values[ti-1][n]]
+                if n in range(20):
+                    presence[n] +=[pattern_presence[ti-1]]
+                t+=0.001 # In seconds
+
+    matshow(discrete_actv + presence, cmap=plt.cm.gray)
+    show()
+
+
+
+def activationLevels(N, totalTime, pattern, toPlot=True):
+    '''This function return the activation levels matrix with
+    the level of activation of each neuron over time. This is returned as
+    a TimedArray. The list of the times in each the pattern in present is
+    returned as well'''
+    mean_dt   = 250e-3
+    mean_dpat = 1250e-3
+
+    # Time intervals
+    times = []
+    t = 0
+    while t < totalTime:
+        times.append(t)
+        t+= np.random.exponential(mean_dt)
+    times.append(totalTime)
+
+    # Time of pattern arrivals
+    ptimes = []
+    t = exponential(mean_dpat)
+    while t < totalTime:
+        ptimes.append(t)
+        t += np.random.exponential(mean_dpat)
+
+    # Put patterns' times in the array, and sort
+    times += ptimes
+    times  = sort(times)
+
+    # Remove this after testing
+    # times = [0, 0.1, 0.3, 0.4, 0.5]
+    # ptimes = [0.1]
+
+    # Random activation matrix - the last 21 rows are for pattern
+    #  identification (grey when present and white when not)
+    activations = rand(len(times), N)
+    pattern_presence = ones(len(times))
+
+    # Add patterns to activation matrix, and also the identification at
+    #  the bottom
+    for (i,t) in enumerate(times):
+        if t in ptimes:
+            activations[i, (N - len(pattern)):N] = pattern
+            pattern_presence[i] = 0.8
+
+    if toPlot:
+        plotActivations(activations, times, pattern_presence)
+
+    return TimedArray(activations,times), pattern_presence
+
 
 def masquelier(simTime=0.5* second, N=2000, psp=1.4*mV, tau=20*msecond, Vt=-54*mV, Vr=-60*mV, El=-60*mV, R=(10**4)*ohm, oscilFreq=8):
     '''This file executes the simulations (given the parameters),
@@ -22,40 +87,34 @@ def masquelier(simTime=0.5* second, N=2000, psp=1.4*mV, tau=20*msecond, Vt=-54*m
     # Default timestep and number of steps
     dt = defaultclock.dt
     total_steps = float(simTime/dt)
-    Nconst_curr=20
+    Nconst_curr = 20
+
     #Size of noise and of drives
     sigma = 0.015*(Vt-Vr)
     Ithr  = ((Vt - El)/R)
 
     # Neural Model
     neuronEquations =  Equations('''
-    dV/dt = -(V-El-R*(I+cI))/tau + sigma*xi/(tau**0.5): volt
+    dV/dt = -(V-El-R*(I+actValue))/tau + sigma*xi/(tau**0.5): volt
     I  : amp
-    cI : amp
+    actValue : amp
     ''')
 
     # Create neuron groups and set initial conditions
-    inputLayer = NeuronGroup(N=N, model=neuronEquations, threshold=Vt, reset=Vr)
+    inputLayer   = NeuronGroup(N=N, model=neuronEquations, threshold=Vt, reset=Vr)
     inputLayer.V = Vr + rand(N)*(Vt - Vr) # Initial voltage
 
-    # Stablish oscillatory drive
-    oscilAmp = 0.15*Ithr
+    # Stablish osciluellatory drive
+    oscilAmp     = 0.15*Ithr
     inputLayer.I = TimedArray((oscilAmp/2)*sin(2*pi*dt*oscilFreq*arange(total_steps) - pi/2))
 
-    #Setting constant drives between .95 and 1.07 * Ithr
-    print('Making patterns')
-    inputLayer = patterns(inputLayer, simTime, 500, (.95*Ithr,1.07*Ithr))
-    print('Patterns are ready')
-    #for i in range(N):
-    #    inputLayer[i].cI = ((rand())*0.12 + 0.95)*Ithr
-    #neuron_poisson = PoissonGroup(N, rates=40*Hz)
-    # Connect groups
-    #inputDrive = Connection(neuron_poisson, inputLayer)
-    #inputDrive.connect_one_to_one(neuron_poisson, inputLayer, weight=psp)
+    # Get the activation levels' matrix and use as input current
+    acts, pattern_presence = activationLevels(N, simTime/second, rand(200))
+    inputLayer.actValue    = (acts*0.12 + 0.95)*Ithr
 
     # Mesurement devices
-    spikes = SpikeMonitor(inputLayer)
-    voltimeter = StateMonitor(inputLayer, 'V', record=0)
+    spikes = SpikeMonitor(inputLayer[1700:2000])
+    voltimeter  = StateMonitor(inputLayer, 'V', record=0)
     amperimeter = StateMonitor(inputLayer, 'I', record=0)
 
     # Run the simulation
@@ -79,8 +138,10 @@ def masquelier(simTime=0.5* second, N=2000, psp=1.4*mV, tau=20*msecond, Vt=-54*m
     ylabel('Current (in nA)')
     title('Current drive for neuron 0')
     current.show()
+
     return inputLayer
 
 
 if __name__ == "__main__":
-    inputLayer =masquelier()
+    # actLevels, presence = activationLevels(2000, 10, ones(200))
+    inputLayer = masquelier(simTime = 3*second)
