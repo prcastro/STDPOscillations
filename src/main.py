@@ -79,7 +79,7 @@ def activationLevels(N, totalTime, pattern, toPlot=True):
     return TimedArray(activations,times), pattern_presence
 
 
-def masquelier(simTime=0.5* second, N=2000, psp=1.4*mV, tau=20*msecond, Vt=-54*mV, Vr=-60*mV, El=-60*mV, R=(10**4)*ohm, oscilFreq=8):
+def masquelier(simTime=0.5* second, N=2000, psp=0.004*mV, tau=20*msecond, taus=5*msecond, Vt=-54*mV, Vr=-60*mV, El=-60*mV, R=(10**4)*ohm, oscilFreq=8):
     '''This file executes the simulations (given the parameters),
     of Masquelier's model for learning and saves the results in
     appropriate files.'''
@@ -92,33 +92,41 @@ def masquelier(simTime=0.5* second, N=2000, psp=1.4*mV, tau=20*msecond, Vt=-54*m
     #Size of noise and of drives
     sigma = 0.015*(Vt-Vr)
     Ithr  = ((Vt - El)/R)
+    Imax  = 0.5*15*amp
 
     # Neural Model
     neuronEquations =  Equations('''
-    dV/dt = -(V-El-R*(I+actValue))/tau + sigma*xi/(tau**0.5): volt
+    dV/dt = -(V-El-R*(I+actValue+s*Imax))/tau + sigma*xi/(tau**0.5): volt
     I  : amp
     actValue : amp
+    ds/dt = -s/taus: 1
     ''')
 
     # Create neuron groups and set initial conditions
     inputLayer   = NeuronGroup(N=N, model=neuronEquations, threshold=Vt, reset=Vr)
     inputLayer.V = Vr + rand(N)*(Vt - Vr) # Initial voltage
+    outputLayer = NeuronGroup(N=1, model=neuronEquations, threshold=Vt, reset=Vr)
+    outputLayer.V = Vr + rand()*(Vt - Vr) # Initial voltage
+    outputLayer.s = 0
 
-    # Stablish osciluellatory drive
+    # Stablish oscillatory drive
     oscilAmp     = 0.15*Ithr
     inputLayer.I = TimedArray((oscilAmp/2)*sin(2*pi*dt*oscilFreq*arange(total_steps) - pi/2))
 
     # Get the activation levels' matrix and use as input current
-    acts, pattern_presence = activationLevels(N, simTime/second, rand(200))
+    acts, pattern_presence = activationLevels(N, simTime/second, rand(200), toPlot=False)
     inputLayer.actValue    = (acts*0.12 + 0.95)*Ithr
+
+    # Connect the neuron groups
+    con = Connection(inputLayer, outputLayer, "s", weight=rand(2000, 1)*nS)
 
     # Mesurement devices
     spikes = SpikeMonitor(inputLayer[1700:2000])
-    voltimeter  = StateMonitor(inputLayer, 'V', record=0)
+    voltimeter  = StateMonitor(outputLayer, 'V', record=0)
     amperimeter = StateMonitor(inputLayer, 'I', record=0)
 
     # Run the simulation
-    run(simTime)
+    run(simTime, report="text")
 
     # Plot raster + voltage of neuron 0
     raster_voltage = figure(1)
@@ -127,8 +135,8 @@ def masquelier(simTime=0.5* second, N=2000, psp=1.4*mV, tau=20*msecond, Vt=-54*m
     subplot(2,1,2)
     plot(voltimeter.times/ms, voltimeter[0]/mV)
     xlabel('Time (in ms)')
-    ylabel('Membrane potential (in mV)')
-    title('Membrane potential for neuron 0')
+    ylabel('Membrane potential of output (in mV)')
+    title('Membrane potential in the output neuron')
     raster_voltage.show()
 
     # Plot current at neuron 0 (for debugging purposes, delete after pattern is included)
