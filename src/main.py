@@ -31,7 +31,6 @@ def plotActivations(values, times, pattern_presence):
     show()
 
 
-
 def activationLevels(N, totalTime, pattern, toPlot=True):
     '''This function return the activation levels matrix with
     the level of activation of each neuron over time. This is returned as
@@ -58,10 +57,6 @@ def activationLevels(N, totalTime, pattern, toPlot=True):
     # Put patterns' times in the array, and sort
     times += ptimes
     times  = sort(times)
-
-    # Remove this after testing
-    # times = [0, 0.1, 0.3, 0.4, 0.5]
-    # ptimes = [0.1]
 
     # Random activation matrix - the last 21 rows are for pattern
     #  identification (grey when present and white when not)
@@ -138,13 +133,13 @@ def masquelier(simTime=0.5* second, N=2000, psp=0.004*mV, tau=20*msecond, taus=5
     run(simTime, report='text')
 
     # Plot raster + voltage of neuron 0
+    raster_voltage = figure(1)
 
     # Set grid
-    raster_voltage = figure(1)
     gs = gridspec.GridSpec(3, 2)
     gs.update(hspace=0.5)
 
-    # raster plot
+    # Raster plot
     subplot(gs[0,:])
     raster_plot(spikes, markersize=4)
     ylabel('Afferent #')
@@ -158,6 +153,7 @@ def masquelier(simTime=0.5* second, N=2000, psp=0.004*mV, tau=20*msecond, taus=5
     xlabel('Time (in s)', fontsize=10)
     ylabel('Membrane potential (in mV)', fontsize=10)
 
+    # Weights' histogram
     subplot(gs[2,0])
     hist(weights/mean(weights), 25)
     xlim([0.0, 1.0])
