@@ -76,7 +76,7 @@ def activationLevels(N, totalTime, pattern, toPlot=True):
     return TimedArray(activations,times), pattern_presence
 
 
-def masquelier(simTime=0.5* second, N=2000, psp=0.004*mV, tau=20*msecond, taus=5*msecond, Vt=-54*mV, Vr=-60*mV, El=-70*mV, R=(10**6)*ohm, oscilFreq=8):
+def masquelier(simTime=0.5* second, N=2000, psp=0.004*mV, tau=20*msecond, taus=5*msecond, Vt=-54*mV, Vr=-60*mV, El=-70*mV, R=(10**6)*ohm, oscilFreq=8, toPlot=True):
     '''This file executes the simulations (given the parameters),
     of Masquelier's model for learning and saves the results in
     appropriate files.'''
@@ -120,9 +120,8 @@ def masquelier(simTime=0.5* second, N=2000, psp=0.004*mV, tau=20*msecond, taus=5
     inputLayer.actValue    = (acts*0.12 + 0.95)*Ithr
 
     # Connect the neuron groups
-    weights = rand(N, 1)*2*(8.6 * pamp/Imax) * 8
+    weights = rand(N, 1)*2*(8.6 * pamp/Imax) * 8 # Mean is 8 times of what is specified in the paper
     con = Connection(inputLayer, outputLayer, 's', weight=weights)
-    print(mean(weights)*Imax)
 
     # Mesurement devices
     spikes = SpikeMonitor(inputLayer[1750:1950])
@@ -132,45 +131,46 @@ def masquelier(simTime=0.5* second, N=2000, psp=0.004*mV, tau=20*msecond, taus=5
     # Run the simulation
     run(simTime, report='text')
 
-    # Plot raster + voltage of neuron 0
-    raster_voltage = figure(1)
+    if toPlot:
+        # Plot raster + voltage of neuron 0
+        raster_voltage = figure(1)
 
-    # Set grid
-    gs = gridspec.GridSpec(3, 2)
-    gs.update(hspace=0.5)
+        # Set grid
+        gs = gridspec.GridSpec(3, 2)
+        gs.update(hspace=0.5)
 
-    # Raster plot
-    subplot(gs[0,:])
-    raster_plot(spikes, markersize=4)
-    ylabel('Afferent #')
-    xlabel('Time (in ms)', fontsize=10)
+        # Raster plot
+        subplot(gs[0,:])
+        raster_plot(spikes, markersize=4)
+        ylabel('Afferent #')
+        xlabel('Time (in ms)', fontsize=10)
 
-    # Plot membrane potential of the output
-    subplot(gs[1,:])
-    plot(voltimeter.times/second, voltimeter[0]/mV)
-    axhline(-54, linestyle='-')
-    ylim([-70, -53])
-    xlabel('Time (in s)', fontsize=10)
-    ylabel('Membrane potential (in mV)', fontsize=10)
+        # Plot membrane potential of the output
+        subplot(gs[1,:])
+        plot(voltimeter.times/second, voltimeter[0]/mV)
+        axhline(-54, linestyle=':')
+        ylim([-70, -53])
+        xlabel('Time (in s)', fontsize=10)
+        ylabel('Membrane potential (in mV)', fontsize=10)
 
-    # Weights' histogram
-    subplot(gs[2,0])
-    hist(weights/mean(weights), 25)
-    xlim([0.0, 1.0])
-    ylim([0,2000])
-    ylabel("#", fontsize=10)
-    xlabel("Normalized weight", fontsize=10)
+        # Weights' histogram
+        subplot(gs[2,0])
+        hist(weights/mean(weights), 25)
+        xlim([0.0, 1.0])
+        ylim([0,2000])
+        ylabel("#", fontsize=10)
+        xlabel("Normalized weight", fontsize=10)
 
-    # Show the figure
-    raster_voltage.show()
+        # Show the figure
+        raster_voltage.show()
 
-    # Plot current at neuron 0 (for debugging purposes, delete after pattern is included)
-    # current = figure(2)
-    # plot(amperimeter.times/ms, amperimeter[0]/namp)
-    # xlabel('Time (in ms)')
-    # ylabel('Current (in nA)')
-    # title('Current drive for neuron 0')
-    # current.show()
+        # Plot current at neuron 0 (for debugging purposes, delete after pattern is included)
+        current = figure(2)
+        plot(amperimeter.times/ms, amperimeter[0]/namp)
+        xlabel('Time (in ms)')
+        ylabel('Current (in nA)')
+        title('Current drive for neuron 0')
+        current.show()
 
     return inputLayer
 
