@@ -158,6 +158,13 @@ def masquelier(simTime=0.5* second, N=2000, psp=0.004*mV, tau=20*msecond, taus=5
     xlabel('Time (in s)', fontsize=10)
     ylabel('Membrane potential (in mV)', fontsize=10)
 
+    subplot(gs[2,0])
+    hist(weights/mean(weights), 25)
+    xlim([0.0, 1.0])
+    ylim([0,2000])
+    ylabel("#", fontsize=10)
+    xlabel("Normalized weight", fontsize=10)
+
     # Show the figure
     raster_voltage.show()
 
