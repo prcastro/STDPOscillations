@@ -1,11 +1,13 @@
 from brian import *
+import matplotlib.gridspec as gridspec
+# style.use('ggplot')
 
 # TODO
 # [*] record 2000 neurons spiking with constant drive
 # [*] sinusoidal drive
 # [*] stimulus
-# [ ] synapse input layer -> output layer
-# [ ] Record voltage of output layer
+# [*] synapse input layer -> output layer
+# [*] Record voltage of output layer
 # [ ] STDP
 # [ ] Measure learning
 # [ ] More realistic model of CA1
@@ -79,7 +81,7 @@ def activationLevels(N, totalTime, pattern, toPlot=True):
     return TimedArray(activations,times), pattern_presence
 
 
-def masquelier(simTime=0.5* second, N=2000, psp=0.004*mV, tau=20*msecond, taus=5*msecond, Vt=-54*mV, Vr=-60*mV, El=-60*mV, R=(10**4)*ohm, oscilFreq=8):
+def masquelier(simTime=0.5* second, N=2000, psp=0.004*mV, tau=20*msecond, taus=5*msecond, Vt=-54*mV, Vr=-60*mV, El=-70*mV, R=(10**6)*ohm, oscilFreq=8):
     '''This file executes the simulations (given the parameters),
     of Masquelier's model for learning and saves the results in
     appropriate files.'''
@@ -87,25 +89,30 @@ def masquelier(simTime=0.5* second, N=2000, psp=0.004*mV, tau=20*msecond, taus=5
     # Default timestep and number of steps
     dt = defaultclock.dt
     total_steps = float(simTime/dt)
-    Nconst_curr = 20
 
-    #Size of noise and of drives
-    sigma = 0.015*(Vt-Vr)
-    Ithr  = ((Vt - El)/R)
-    Imax  = 0.5*15*amp
+    # Size of noise and of drives
+    sigma = 0.015*(Vt - Vr)
+    Ithr  = (Vt - El)/R
+    Imax  = 0.05*namp
 
-    # Neural Model
-    neuronEquations =  Equations('''
-    dV/dt = -(V-El-R*(I+actValue+s*Imax))/tau + sigma*xi/(tau**0.5): volt
-    I  : amp
-    actValue : amp
+    # Model of input neuron. Current comes from oscillatory input (I) and from
+    # the activation levels (actValue, like Masquelier et al 2009 Figure 1). This
+    # is based on Eq 1 of Masquelier et al 2009.
+    inputNeuron =  Equations('''
+    dV/dt = -(V-El - R*(I+actValue))/tau + sigma*xi/(tau**0.5): volt
+    I: amp
+    actValue: amp
+    ''')
+
+    outputNeuron =  Equations('''
+    dV/dt = -(V-El - R*(s*Imax))/tau + sigma*xi/(tau**0.5): volt
     ds/dt = -s/taus: 1
     ''')
 
     # Create neuron groups and set initial conditions
-    inputLayer   = NeuronGroup(N=N, model=neuronEquations, threshold=Vt, reset=Vr)
-    inputLayer.V = Vr + rand(N)*(Vt - Vr) # Initial voltage
-    outputLayer = NeuronGroup(N=1, model=neuronEquations, threshold=Vt, reset=Vr)
+    inputLayer    = NeuronGroup(N=N, model=inputNeuron, threshold=Vt, reset=Vr)
+    inputLayer.V  = Vr + rand(N)*(Vt - Vr) # Initial voltage
+    outputLayer   = NeuronGroup(N=1, model=outputNeuron, threshold=Vt, reset=Vr)
     outputLayer.V = Vr + rand()*(Vt - Vr) # Initial voltage
     outputLayer.s = 0
 
@@ -114,38 +121,53 @@ def masquelier(simTime=0.5* second, N=2000, psp=0.004*mV, tau=20*msecond, taus=5
     inputLayer.I = TimedArray((oscilAmp/2)*sin(2*pi*dt*oscilFreq*arange(total_steps) - pi/2))
 
     # Get the activation levels' matrix and use as input current
-    acts, pattern_presence = activationLevels(N, simTime/second, rand(200), toPlot=False)
+    acts, _ = activationLevels(N, simTime/second, rand(200), toPlot=False)
     inputLayer.actValue    = (acts*0.12 + 0.95)*Ithr
 
     # Connect the neuron groups
-    con = Connection(inputLayer, outputLayer, "s", weight=rand(2000, 1)*nS)
+    weights = rand(N, 1)*2*(8.6 * pamp/Imax) * 8
+    con = Connection(inputLayer, outputLayer, 's', weight=weights)
+    print(mean(weights)*Imax)
 
     # Mesurement devices
-    spikes = SpikeMonitor(inputLayer[1700:2000])
+    spikes = SpikeMonitor(inputLayer[1750:1950])
     voltimeter  = StateMonitor(outputLayer, 'V', record=0)
     amperimeter = StateMonitor(inputLayer, 'I', record=0)
 
     # Run the simulation
-    run(simTime, report="text")
+    run(simTime, report='text')
 
     # Plot raster + voltage of neuron 0
+
+    # Set grid
     raster_voltage = figure(1)
-    subplot(2,1,1)
-    raster_plot(spikes)
-    subplot(2,1,2)
-    plot(voltimeter.times/ms, voltimeter[0]/mV)
-    xlabel('Time (in ms)')
-    ylabel('Membrane potential of output (in mV)')
-    title('Membrane potential in the output neuron')
+    gs = gridspec.GridSpec(3, 2)
+    gs.update(hspace=0.5)
+
+    # raster plot
+    subplot(gs[0,:])
+    raster_plot(spikes, markersize=4)
+    ylabel('Afferent #')
+    xlabel('Time (in ms)', fontsize=10)
+
+    # Plot membrane potential of the output
+    subplot(gs[1,:])
+    plot(voltimeter.times/second, voltimeter[0]/mV)
+    axhline(-54, linestyle='-')
+    ylim([-70, -53])
+    xlabel('Time (in s)', fontsize=10)
+    ylabel('Membrane potential (in mV)', fontsize=10)
+
+    # Show the figure
     raster_voltage.show()
 
     # Plot current at neuron 0 (for debugging purposes, delete after pattern is included)
-    current = figure(2)
-    plot(amperimeter.times/ms, amperimeter[0]/namp)
-    xlabel('Time (in ms)')
-    ylabel('Current (in nA)')
-    title('Current drive for neuron 0')
-    current.show()
+    # current = figure(2)
+    # plot(amperimeter.times/ms, amperimeter[0]/namp)
+    # xlabel('Time (in ms)')
+    # ylabel('Current (in nA)')
+    # title('Current drive for neuron 0')
+    # current.show()
 
     return inputLayer
 
