@@ -89,6 +89,7 @@ def masquelier(simTime=0.5* second, N=2000, psp=0.004*mV, tau=20*msecond, taus=5
     sigma = 0.015*(Vt - Vr)
     Ithr  = (Vt - El)/R
     Imax  = 0.05*namp
+    patt_range=(1800,2000)
 
     # Model of input neuron. Current comes from oscillatory input (I) and from
     # the activation levels (actValue, like Masquelier et al 2009 Figure 1). This
@@ -126,7 +127,7 @@ def masquelier(simTime=0.5* second, N=2000, psp=0.004*mV, tau=20*msecond, taus=5
     con = Connection(inputLayer, outputLayer, 's', weight=weights)
 
     # Mesurement devices
-    spikes = SpikeMonitor(inputLayer[1750:1950])
+    spikes = SpikeMonitor(inputLayer[patt_range[0]-50:patt_range[1]-50])
     voltimeter  = StateMonitor(outputLayer, 'V', record=0)
     amperimeter = StateMonitor(inputLayer, 'I', record=0)
 
@@ -157,13 +158,16 @@ def masquelier(simTime=0.5* second, N=2000, psp=0.004*mV, tau=20*msecond, taus=5
 
         # Weights' histogram
         subplot(gs[2,0])
-        hist(weights/mean(weights), 25)
+        hist(weights/max(weights), 25)
         xlim([0.0, 1.0])
-        ylim([0,2000])
+        ylim([0,N])
         ylabel("#", fontsize=10)
         xlabel("Normalized weight", fontsize=10)
 
+        subplot(gs[2,1])
+        plot(patt_act,weights[patt_range[0]:patt_range[1]]/max(weights),'.')
         # Show the figure
+
         raster_voltage.show()
 
         # Plot current at neuron 0 (for debugging purposes, delete after pattern is included)
