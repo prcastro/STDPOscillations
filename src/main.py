@@ -121,11 +121,12 @@ def masquelier(simTime=0.5* second, N=2000, psp=0.004*mV, tau=20*msecond, taus=5
     inputLayer.I = TimedArray((oscilAmp/2)*sin(2*pi*dt*oscilFreq*arange(total_steps) - pi/2))
 
     # Get the activation levels' matrix and use as input current
-    acts, _ = activationLevels(N, simTime/second, rand(200), toPlot=False)
+    patt_act = rand(200)
+    acts, _ = activationLevels(N, simTime/second, patt_act, toPlot=False)
     inputLayer.actValue    = (acts*0.12 + 0.95)*Ithr
 
     # Connect the neuron groups
-    weights = rand(N, 1)*2*(8.6 * pamp/Imax) * 8
+    weights = rand(N, 1)*2*(8.6 * pamp/Imax)*8
     con = Connection(inputLayer, outputLayer, 's', weight=weights)
     print(mean(weights)*Imax)
 
@@ -143,7 +144,7 @@ def masquelier(simTime=0.5* second, N=2000, psp=0.004*mV, tau=20*msecond, taus=5
     raster_voltage = figure(1)
     gs = gridspec.GridSpec(3, 2)
     gs.update(hspace=0.5)
-
+    
     # raster plot
     subplot(gs[0,:])
     raster_plot(spikes, markersize=4)
