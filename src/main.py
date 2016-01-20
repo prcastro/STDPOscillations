@@ -31,7 +31,7 @@ def plotActivations(values, times, pattern_presence):
     show()
 
 
-def activationLevels(N, totalTime, pattern, toPlot=True):
+def activationLevels(N, totalTime, pattern, patt_range, toPlot=True):
     '''This function return the activation levels matrix with
     the level of activation of each neuron over time. This is returned as
     a TimedArray. The list of the times in each the pattern in present is
@@ -67,7 +67,7 @@ def activationLevels(N, totalTime, pattern, toPlot=True):
     #  the bottom
     for (i,t) in enumerate(times):
         if t in ptimes:
-            activations[i, (N - len(pattern)):N] = pattern
+            activations[i, patt_range[0]:patt_range[1]] = pattern
             pattern_presence[i] = 0.8
 
     if toPlot:
@@ -118,7 +118,7 @@ def masquelier(simTime=0.5* second, N=2000, psp=0.004*mV, tau=20*msecond, taus=5
 
     # Get the activation levels' matrix and use as input current
     patt_act = rand(200)
-    acts, _ = activationLevels(N, simTime/second, patt_act, toPlot=False)
+    acts, _ = activationLevels(N, simTime/second, patt_act, patt_range, toPlot=False)
     inputLayer.actValue    = (acts*0.12 + 0.95)*Ithr
 
     # Connect the neuron groups
