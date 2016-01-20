@@ -76,10 +76,13 @@ def activationLevels(N, totalTime, pattern, toPlot=True):
     return TimedArray(activations,times), pattern_presence
 
 
-def masquelier(simTime=0.5* second, N=2000, psp=0.004*mV, tau=20*msecond, taus=5*msecond, Vt=-54*mV, Vr=-60*mV, El=-70*mV, R=(10**6)*ohm, oscilFreq=8, toPlot=True):
+def masquelier(simTime=0.5* second, N=2000, psp=0.004*mV, tau=20*msecond, taus=5*msecond, Vt=-54*mV, Vr=-60*mV, El=-70*mV, R=(10**6)*ohm, oscilFreq=8, patt_act=rand(200), patt_range=(1800,2000), toPlot=True):
     '''This file executes the simulations (given the parameters),
     of Masquelier's model for learning and saves the results in
     appropriate files.'''
+
+    if len(patt_act) != (patt_range[1] - patt_range[0]):
+        raise ValueError("Pattern activation must be consistent with pattern range")
 
     # Default timestep and number of steps
     dt = defaultclock.dt
@@ -89,7 +92,6 @@ def masquelier(simTime=0.5* second, N=2000, psp=0.004*mV, tau=20*msecond, taus=5
     sigma = 0.015*(Vt - Vr)
     Ithr  = (Vt - El)/R
     Imax  = 0.05*namp
-    patt_range=(1800,2000)
 
     # Model of input neuron. Current comes from oscillatory input (I) and from
     # the activation levels (actValue, like Masquelier et al 2009 Figure 1). This
@@ -117,7 +119,6 @@ def masquelier(simTime=0.5* second, N=2000, psp=0.004*mV, tau=20*msecond, taus=5
     inputLayer.I = TimedArray((oscilAmp/2)*sin(2*pi*dt*oscilFreq*arange(total_steps) - pi/2))
 
     # Get the activation levels' matrix and use as input current
-    patt_act = rand(200)
     acts, _ = activationLevels(N, simTime/second, patt_act, toPlot=False)
     inputLayer.actValue    = (acts*0.12 + 0.95)*Ithr
 
