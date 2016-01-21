@@ -130,7 +130,7 @@ def masquelier(simTime=3*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau=20
 
     # # STDP synapse
     aminus = -(aplus * aratio)
-    stdp = ExponentialSTDP(con, taup, taum, aplus, aminus, wmax=wmax, interactions='all', update='additive')
+    stdp = ExponentialSTDP(con, taup, taum, aplus, aminus, wmax=1, interactions='all', update='additive')
 
     # Mesurement devices
     spikes      = SpikeMonitor(inputLayer[patt_range[0]-50:patt_range[1]-50])
