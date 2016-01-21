@@ -31,7 +31,7 @@ def plotActivations(values, times, pattern_presence):
     show()
 
 
-def activationLevels(N, totalTime, pattern, toPlot=True):
+def activationLevels(N, totalTime, pattern, patt_range, toPlot=True):
     '''This function return the activation levels matrix with
     the level of activation of each neuron over time. This is returned as
     a TimedArray. The list of the times in each the pattern in present is
@@ -67,7 +67,7 @@ def activationLevels(N, totalTime, pattern, toPlot=True):
     #  the bottom
     for (i,t) in enumerate(times):
         if t in ptimes:
-            activations[i, (N - len(pattern)):N] = pattern
+            activations[i, patt_range[0]:patt_range[1]] = pattern
             pattern_presence[i] = 0.8
 
     if toPlot:
