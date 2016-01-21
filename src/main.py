@@ -70,10 +70,19 @@ def activationLevels(N, totalTime, pattern, patt_range, toPlot=True):
             activations[i, patt_range[0]:patt_range[1]] = pattern
             pattern_presence[i] = 0.8
 
+    # Make the activations' TimedArray
+    activations = TimedArray(activations,times)
+
+    # Transform pattern presence array into pattern intervals
+    starts  = activations.times[pattern_presence == 0.8]
+    shifted = array([0] + list(pattern_presence)[:-1])
+    ends    = activations.times[shifted == 0.8]
+    pattern_intervals = zip(starts, ends)
+
     if toPlot:
         plotActivations(activations, times, pattern_presence)
 
-    return TimedArray(activations,times), pattern_presence
+    return activations, pattern_intervals
 
 
 def masquelier(simTime=3*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau=20*ms, taus=5*ms, taup=16.8*ms, taum=33.7*ms, aplus=0.005, aratio=1.48, R=9*(10**6)*ohm, oscilFreq=8, patt_act=rand(200), patt_range=(1800,2000), toPlot=True):
@@ -121,11 +130,11 @@ def masquelier(simTime=3*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau=20
     inputLayer.I = TimedArray((oscilAmp/2)*sin(2*pi*oscilFreq*dt*arange(total_steps) - pi))
 
     # Get the activation levels' matrix and use as input current
-    acts, _ = activationLevels(N, simTime/second, patt_act, patt_range, toPlot=False)
+    acts, pattern_intervals = activationLevels(N, simTime/second, patt_act, patt_range, toPlot=False)
     inputLayer.actValue = (acts*0.12 + 0.95)*Ithr # Affine mapping between activation and input
 
-    # # Connect the layers
-    weights = rand(N, 1)*wmax
+    # Connect the layers
+    weights = rand(N, 1) * wmax
     con     = Connection(inputLayer, outputLayer, 's', weight=weights)
 
     # # STDP synapse
@@ -153,21 +162,29 @@ def masquelier(simTime=3*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau=20
 
         # Raster plot
         subplot(gs[0,:])
-        raster_plot(spikes, markersize=4)
+        raster_plot(spikes, markersize=4, color='k')
+        # Plot grey stripe on spike intervals
+        for start, end in pattern_intervals:
+            axvspan(start*1000, end*1000, color='grey', alpha=0.5, lw=0)
+        xlim(10e3-5e3, 10e3)
         ylabel('Afferent #')
         xlabel('Time (in ms)', fontsize=10)
 
-        # Plot membrane potential of the output
+        # Plot membrane potential of the output with patterns
         subplot(gs[1,:])
-        plot(voltimeter.times/second, voltimeter[0]/mV)
-        axhline(-54, linestyle=':')
+        plot(voltimeter.times/second, voltimeter[0]/mV, color='k')
+        axhline(-54, linestyle=':', color='k')
+        # Plot grey stripe on spike intervals
+        for start, end in pattern_intervals:
+            axvspan(start, end, color='grey', alpha=0.5, lw=0)
+        xlim(10-5, 10)
         ylim([-70, -53])
         xlabel('Time (in s)', fontsize=10)
         ylabel('Membrane potential (in mV)', fontsize=10)
 
         # Weights' histogram
         subplot(gs[2,0])
-        hist(weights, 9)
+        hist(weights, 9, color='k')
         xlim([0.0, 1.0])
         ylim([0,N])
         ylabel("#", fontsize=10)
@@ -175,22 +192,14 @@ def masquelier(simTime=3*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau=20
 
         # Weights per activation of pattern's neurons
         subplot(gs[2,1])
-        plot(patt_act,weights[patt_range[0]:patt_range[1]],'.')
+        plot(patt_act, weights[patt_range[0]:patt_range[1]], '.', color='k')
         ylim([0, 1.0])
 
         # Show the figure
         raster_voltage.show()
 
-        # Plot current at neuron 0 (for debugging purposes, delete after pattern is included)
-        current = figure(2)
-        plot(amperimeter.times/ms, amperimeter[0]/namp)
-        xlabel('Time (in ms)')
-        ylabel('Current (in nA)')
-        title('Current drive for neuron 0')
-        current.show()
-
     return inputLayer
 
 
 if __name__ == "__main__":
-    inputLayer = masquelier()
+    inputLayer = masquelier(simTime = 10*second)
