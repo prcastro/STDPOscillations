@@ -121,7 +121,7 @@ def masquelier(simTime=3*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau=20
     inputLayer.I = TimedArray((oscilAmp/2)*sin(2*pi*oscilFreq*dt*arange(total_steps) - pi))
 
     # Get the activation levels' matrix and use as input current
-    acts, _ = activationLevels(N, simTime/second, patt_act, toPlot=False)
+    acts, _ = activationLevels(N, simTime/second, patt_act, patt_range, toPlot=False)
     inputLayer.actValue = (acts*0.12 + 0.95)*Ithr # Affine mapping between activation and input
 
     # # Connect the layers
