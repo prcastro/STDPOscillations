@@ -8,7 +8,7 @@ import matplotlib.gridspec as gridspec
 # [*] stimulus
 # [*] synapse input layer -> output layer
 # [*] Record voltage of output layer
-# [ ] STDP
+# [*] STDP
 # [ ] Measure learning
 # [ ] More realistic model of CA1
 # [ ] Parameter search
@@ -76,10 +76,12 @@ def activationLevels(N, totalTime, pattern, toPlot=True):
     return TimedArray(activations,times), pattern_presence
 
 
-def masquelier(simTime=0.5* second, N=2000, psp=0.004*mV, tau=20*msecond, taus=5*msecond, Vt=-54*mV, Vr=-60*mV, El=-70*mV, R=(10**6)*ohm, oscilFreq=8, patt_act=rand(200), patt_range=(1800,2000), toPlot=True):
+def masquelier(simTime=3*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau=20*ms, taus=5*ms, taup=16.8*ms, taum=33.7*ms, aplus=0.005, aratio=1.48, R=9*(10**6)*ohm, oscilFreq=8, patt_act=rand(200), patt_range=(1800,2000), toPlot=True):
     '''This file executes the simulations (given the parameters),
     of Masquelier's model for learning and saves the results in
-    appropriate files.'''
+    appropriate files.
+
+    Note: R is nine times larger than in the paper'''
 
     if len(patt_act) != (patt_range[1] - patt_range[0]):
         raise ValueError("Pattern activation must be consistent with pattern range")
@@ -88,10 +90,11 @@ def masquelier(simTime=0.5* second, N=2000, psp=0.004*mV, tau=20*msecond, taus=5
     dt = defaultclock.dt
     total_steps = float(simTime/dt)
 
-    # Size of noise and of drives
+    # Size of noise, drives and weights
     sigma = 0.015*(Vt - Vr)
     Ithr  = (Vt - El)/R
     Imax  = 0.05*namp
+    wmax  = 2*(8.6 * pamp/Imax)
 
     # Model of input neuron. Current comes from oscillatory input (I) and from
     # the activation levels (actValue, like Masquelier et al 2009 Figure 1). This
@@ -112,23 +115,25 @@ def masquelier(simTime=0.5* second, N=2000, psp=0.004*mV, tau=20*msecond, taus=5
     inputLayer.V  = Vr + rand(N)*(Vt - Vr) # Initial voltage
     outputLayer   = NeuronGroup(N=1, model=outputNeuron, threshold=Vt, reset=Vr)
     outputLayer.V = Vr + rand()*(Vt - Vr) # Initial voltage
-    outputLayer.s = 0
 
-    # Stablish oscillatory drive
+    # Oscillatory drive on the input layer
     oscilAmp     = 0.15*Ithr
-    inputLayer.I = TimedArray((oscilAmp/2)*sin(2*pi*dt*oscilFreq*arange(total_steps) - pi/2))
+    inputLayer.I = TimedArray((oscilAmp/2)*sin(2*pi*oscilFreq*dt*arange(total_steps) - pi))
 
     # Get the activation levels' matrix and use as input current
     acts, _ = activationLevels(N, simTime/second, patt_act, toPlot=False)
-    inputLayer.actValue    = (acts*0.12 + 0.95)*Ithr
+    inputLayer.actValue = (acts*0.12 + 0.95)*Ithr # Affine mapping between activation and input
 
-    # Connect the neuron groups
+    # # Connect the layers
+    weights = rand(N, 1)*wmax
+    con     = Connection(inputLayer, outputLayer, 's', weight=weights)
 
-    weights = rand(N, 1)*2*(8.6 * pamp/Imax) * 8 # Mean is 8 times of what is specified in the paper
-    con = Connection(inputLayer, outputLayer, 's', weight=weights)
+    # # STDP synapse
+    aminus = -(aplus * aratio)
+    stdp = ExponentialSTDP(con, taup, taum, aplus, aminus, wmax=wmax, interactions='all', update='additive')
 
     # Mesurement devices
-    spikes = SpikeMonitor(inputLayer[patt_range[0]-50:patt_range[1]-50])
+    spikes      = SpikeMonitor(inputLayer[patt_range[0]-50:patt_range[1]-50])
     voltimeter  = StateMonitor(outputLayer, 'V', record=0)
     amperimeter = StateMonitor(inputLayer, 'I', record=0)
 
@@ -136,6 +141,9 @@ def masquelier(simTime=0.5* second, N=2000, psp=0.004*mV, tau=20*msecond, taus=5
     run(simTime, report='text')
 
     if toPlot:
+        # Update weights to the values found on the Connection object
+        weights = con.W.todense()
+
         # Plot raster + voltage of neuron 0
         raster_voltage = figure(1)
 
@@ -159,16 +167,18 @@ def masquelier(simTime=0.5* second, N=2000, psp=0.004*mV, tau=20*msecond, taus=5
 
         # Weights' histogram
         subplot(gs[2,0])
-        hist(weights/max(weights), 25)
+        hist(weights, 9)
         xlim([0.0, 1.0])
         ylim([0,N])
         ylabel("#", fontsize=10)
         xlabel("Normalized weight", fontsize=10)
 
+        # Weights per activation of pattern's neurons
         subplot(gs[2,1])
-        plot(patt_act,weights[patt_range[0]:patt_range[1]]/max(weights),'.')
-        # Show the figure
+        plot(patt_act,weights[patt_range[0]:patt_range[1]],'.')
+        ylim([0, 1.0])
 
+        # Show the figure
         raster_voltage.show()
 
         # Plot current at neuron 0 (for debugging purposes, delete after pattern is included)
@@ -183,5 +193,4 @@ def masquelier(simTime=0.5* second, N=2000, psp=0.004*mV, tau=20*msecond, taus=5
 
 
 if __name__ == "__main__":
-    # actLevels, presence = activationLevels(2000, 10, ones(200))
-    inputLayer = masquelier(simTime = 3*second)
+    inputLayer = masquelier()
