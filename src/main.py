@@ -1,6 +1,5 @@
 from brian import *
 import matplotlib.gridspec as gridspec
-# style.use('ggplot')
 
 # TODO
 # [*] record 2000 neurons spiking with constant drive
@@ -9,7 +8,7 @@ import matplotlib.gridspec as gridspec
 # [*] synapse input layer -> output layer
 # [*] Record voltage of output layer
 # [*] STDP
-# [ ] Measure learning
+# [*] Measure learning
 # [ ] More realistic model of CA1
 # [ ] Parameter search
 # [ ] Introduce more patterns
@@ -89,7 +88,6 @@ def mutualInformation(times,pattern_presence, voltimeter, init,Vr):
     #makes the pattern presence a True or false for each .1ms interval
     for ti in range(1,len(times)):
         t = times[ti-1]
-        print(t)
         while t < times[ti]:
             discrete_pat += [pattern_presence[ti-1]<1]
             t+=0.0001 # In seconds
