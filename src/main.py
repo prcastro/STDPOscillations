@@ -30,7 +30,6 @@ def plotActivations(values, times, pattern_presence):
     matshow(discrete_actv + presence, cmap=plt.cm.gray)
     show()
 
-
 def activationLevels(N, totalTime, pattern, patt_range, toPlot=True):
     '''This function return the activation levels matrix with
     the level of activation of each neuron over time. This is returned as
@@ -117,9 +116,6 @@ def mutualInformation(times,pattern_presence, voltimeter, init,Vr):
     prns = dot(spike,npatt)/len(patt)
     pnrns= dot(nspike,npatt)/len(patt)
 
-    print((pr,pnr, ps,pns,prs,pnrs,prns,pnrns))
-
-
     MI = 0
     if prs   != 0:
         MI += prs*  log2(prs/(pr*ps))
@@ -130,9 +126,7 @@ def mutualInformation(times,pattern_presence, voltimeter, init,Vr):
     if pnrns != 0:
         MI += pnrns*log2(pnrns/(pnr*pns))
 
-
     return MI
-
 
 def masquelier(simTime=3*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau=20*ms, taus=5*ms, taup=16.8*ms, taum=33.7*ms, aplus=0.005, aratio=1.48, R=9*(10**6)*ohm, oscilFreq=8, patt_act=rand(200), patt_range=(1800,2000), toPlot=True):
     '''This file executes the simulations (given the parameters),
@@ -186,12 +180,13 @@ def masquelier(simTime=3*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau=20
     weights = rand(N, 1) * wmax
     con     = Connection(inputLayer, outputLayer, 's', weight=weights)
 
-    # # STDP synapse
+    # STDP synapse
     aminus = -(aplus * aratio)
-    stdp = ExponentialSTDP(con, taup, taum, aplus, aminus, wmax=1, interactions='all', update='additive')
+    stdp   = ExponentialSTDP(con, taup, taum, aplus, aminus, wmax=1, interactions='all', update='additive')
 
     # Mesurement devices
-    spikes      = SpikeMonitor(inputLayer[patt_range[0]-50:patt_range[1]-50])
+    spikes_input = SpikeMonitor(inputLayer[patt_range[0]-50:patt_range[1]-50])
+    spikes_output = SpikeMonitor(outputLayer)
     voltimeter  = StateMonitor(outputLayer, 'V', record=0)
     amperimeter = StateMonitor(inputLayer, 'I', record=0)
 
@@ -211,15 +206,15 @@ def masquelier(simTime=3*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau=20
 
         # Set grid
         gs = gridspec.GridSpec(3, 2)
-        gs.update(hspace=0.5)
+        gs.update(hspace=0.9)
 
         # Raster plot
         subplot(gs[0,:])
-        raster_plot(spikes, markersize=4, color='k')
+        raster_plot(spikes_input, markersize=4, color='k')
         # Plot grey stripe on spike intervals
         for start, end in pattern_intervals:
             axvspan(start*1000, end*1000, color='grey', alpha=0.5, lw=0)
-        #xlim(10e3-5e3, 10e3)
+        #xlim(1000e3-5e3, 1000e3)
         ylabel('Afferent #')
         xlabel('Time (in ms)', fontsize=10)
 
@@ -227,32 +222,42 @@ def masquelier(simTime=3*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau=20
         subplot(gs[1,:])
         plot(voltimeter.times/second, voltimeter[0]/mV, color='k')
         axhline(-54, linestyle=':', color='k')
+        # Plot action potentials
+        for t in spikes_output[0]:
+            axvline(t, linestyle=':', color='k')
         # Plot grey stripe on spike intervals
         for start, end in pattern_intervals:
             axvspan(start, end, color='grey', alpha=0.5, lw=0)
-        #xlim(10-5, 10)
-        ylim([-70, -53])
+
+        # xlim(1000-5, 1000)
+        ylim(-70, -53)
+
         xlabel('Time (in s)', fontsize=10)
         ylabel('Membrane potential (in mV)', fontsize=10)
 
         # Weights' histogram
         subplot(gs[2,0])
         hist(weights, 9, color='k')
-        #xlim([0.0, 1.0])
-        ylim([0,N])
-        ylabel("#", fontsize=10)
-        xlabel("Normalized weight", fontsize=10)
+        xlim(0.0, 1.0)
+        ylim(0,N)
+        ylabel('#', fontsize=10)
+        xlabel('Normalized weight', fontsize=10)
+
 
         # Weights per activation of pattern's neurons
         subplot(gs[2,1])
         plot(patt_act, weights[patt_range[0]:patt_range[1]], '.', color='k')
-        ylim([0, 1.0])
+        ylim(0, 1.0)
+        ylabel('Weight')
+        xlabel('Pattern activation level')
 
         # Show the figure
         raster_voltage.show()
 
-    return inputLayer, MI
+        # Save figure
+        raster_voltage.savefig('summary' + '_f' + str(oscilFreq) + '_aratio' + str(aratio) + '_t' + str(simTime/second) + '.png')
 
+    return inputLayer, MI
 
 if __name__ == "__main__":
     inputLayer, MI = masquelier(simTime = 3*second)
