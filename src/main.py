@@ -82,7 +82,56 @@ def activationLevels(N, totalTime, pattern, patt_range, toPlot=True):
     if toPlot:
         plotActivations(activations, times, pattern_presence)
 
-    return activations, pattern_intervals
+    return activations, pattern_intervals, pattern_presence
+
+def mutualInformation(times,pattern_presence, voltimeter, init,Vr):
+    timestep = 1250
+    discrete_pat =[]
+    #makes the pattern presence a True or false for each .1ms interval
+    for ti in range(1,len(times)):
+        t = times[ti-1]
+        print(t)
+        while t < times[ti]:
+            discrete_pat += [pattern_presence[ti-1]<1]
+            t+=0.0001 # In seconds
+
+    patt=[]
+    spike=[]
+    #making
+    for t in range(init, int(times[-1]*10000)   ,timestep):
+        patt  += [sum(discrete_pat[t:t+timestep])>= timestep/2]
+        spike += [sum(voltimeter[0][t:t+timestep]==Vr) >=1]
+
+    patt  = np.array(patt).astype(float) #s
+    spike = np.array(spike).astype(float) #r
+    npatt = abs(patt -1)
+    nspike= abs(spike -1)
+
+    #probabilities
+    pr = mean(spike)
+    pnr=1-pr
+    ps = mean(patt)
+    pns=1-ps
+    prs  = dot(patt, spike)/len(patt)
+    pnrs = dot(nspike,patt)/len(patt)
+    prns = dot(spike,npatt)/len(patt)
+    pnrns= dot(nspike,npatt)/len(patt)
+
+    print((pr,pnr, ps,pns,prs,pnrs,prns,pnrns))
+
+
+    MI = 0
+    if prs   != 0:
+        MI += prs*  log2(prs/(pr*ps))
+    if pnrs  != 0:
+        MI += pnrs* log2(pnrs/(pnr*ps))
+    if prns  != 0:
+        MI += prns* log2(prns/(pr*pns))
+    if pnrns != 0:
+        MI += pnrns*log2(pnrns/(pnr*pns))
+
+
+    return MI
 
 
 def masquelier(simTime=3*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau=20*ms, taus=5*ms, taup=16.8*ms, taum=33.7*ms, aplus=0.005, aratio=1.48, R=9*(10**6)*ohm, oscilFreq=8, patt_act=rand(200), patt_range=(1800,2000), toPlot=True):
@@ -130,7 +179,7 @@ def masquelier(simTime=3*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau=20
     inputLayer.I = TimedArray((oscilAmp/2)*sin(2*pi*oscilFreq*dt*arange(total_steps) - pi))
 
     # Get the activation levels' matrix and use as input current
-    acts, pattern_intervals = activationLevels(N, simTime/second, patt_act, patt_range, toPlot=False)
+    acts, pattern_intervals, pattern_presence = activationLevels(N, simTime/second, patt_act, patt_range, toPlot=False)
     inputLayer.actValue = (acts*0.12 + 0.95)*Ithr # Affine mapping between activation and input
 
     # Connect the layers
@@ -146,8 +195,12 @@ def masquelier(simTime=3*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau=20
     voltimeter  = StateMonitor(outputLayer, 'V', record=0)
     amperimeter = StateMonitor(inputLayer, 'I', record=0)
 
+
     # Run the simulation
     run(simTime, report='text')
+    init = 0
+    MI = mutualInformation(acts.times,pattern_presence, voltimeter, init,Vr)
+    print(str(MI)+" bits")
 
     if toPlot:
         # Update weights to the values found on the Connection object
@@ -166,7 +219,7 @@ def masquelier(simTime=3*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau=20
         # Plot grey stripe on spike intervals
         for start, end in pattern_intervals:
             axvspan(start*1000, end*1000, color='grey', alpha=0.5, lw=0)
-        xlim(10e3-5e3, 10e3)
+        #xlim(10e3-5e3, 10e3)
         ylabel('Afferent #')
         xlabel('Time (in ms)', fontsize=10)
 
@@ -177,7 +230,7 @@ def masquelier(simTime=3*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau=20
         # Plot grey stripe on spike intervals
         for start, end in pattern_intervals:
             axvspan(start, end, color='grey', alpha=0.5, lw=0)
-        xlim(10-5, 10)
+        #xlim(10-5, 10)
         ylim([-70, -53])
         xlabel('Time (in s)', fontsize=10)
         ylabel('Membrane potential (in mV)', fontsize=10)
@@ -185,7 +238,7 @@ def masquelier(simTime=3*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau=20
         # Weights' histogram
         subplot(gs[2,0])
         hist(weights, 9, color='k')
-        xlim([0.0, 1.0])
+        #xlim([0.0, 1.0])
         ylim([0,N])
         ylabel("#", fontsize=10)
         xlabel("Normalized weight", fontsize=10)
@@ -198,8 +251,8 @@ def masquelier(simTime=3*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau=20
         # Show the figure
         raster_voltage.show()
 
-    return inputLayer
+    return inputLayer, MI
 
 
 if __name__ == "__main__":
-    inputLayer = masquelier(simTime = 10*second)
+    inputLayer, MI = masquelier(simTime = 3*second)
