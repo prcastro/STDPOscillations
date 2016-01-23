@@ -59,50 +59,47 @@ def activationLevels(N, totalTime, pattern, patt_range, toPlot=True):
     # Random activation matrix - the last 21 rows are for pattern
     #  identification (grey when present and white when not)
     activations = rand(len(times), N)
-    pattern_presence = ones(len(times))
+    pattern_presence = zeros(len(times))
 
     # Add patterns to activation matrix, and also the identification at
     #  the bottom
     for (i,t) in enumerate(times):
         if t in ptimes:
             activations[i, patt_range[0]:patt_range[1]] = pattern
-            pattern_presence[i] = 0.8
+            pattern_presence[i] = 1
 
     # Make the activations' TimedArray
     activations = TimedArray(activations,times)
 
     # Transform pattern presence array into pattern intervals
-    starts  = activations.times[pattern_presence == 0.8]
+    starts  = activations.times[pattern_presence == 1]
     shifted = array([0] + list(pattern_presence)[:-1])
-    ends    = activations.times[shifted == 0.8]
+    ends    = activations.times[shifted == 1]
     pattern_intervals = zip(starts, ends)
 
     if toPlot:
         plotActivations(activations, times, pattern_presence)
 
-    return activations, pattern_intervals, pattern_presence
+    return activations, pattern_intervals
 
-def mutualInformation(times,pattern_presence, voltimeter, init,Vr):
-    timestep = 1250
-    discrete_pat =[]
-    #makes the pattern presence a True or false for each .1ms interval
-    for ti in range(1,len(times)):
-        t = times[ti-1]
-        while t < times[ti]:
-            discrete_pat += [pattern_presence[ti-1]<1]
-            t+=0.0001 # In seconds
+def intersection(a,b):
+    return max(0, min(a[1], b[1]) - max(a[0], b[0]))
 
-    patt=[]
-    spike=[]
-    #making
-    for t in range(init*10000, int(times[-1]*10000)   ,timestep):
-        patt  += [sum(discrete_pat[t:t+timestep])>= timestep/2]
-        spike += [sum(voltimeter[0][t:t+timestep]==Vr) >=1]
+def insideInterval(x, I):
+    return x > I[0] and x < I[1]
 
-    patt  = np.array(patt).astype(float) #s
-    spike = np.array(spike).astype(float) #r
-    npatt = abs(patt -1)
-    nspike= abs(spike -1)
+def mutualInformation(init,end, pattern_intervals, spiketimes):
+
+    ts = 0.125 #timestep 125 milisseconds
+    bins = zip(arange(init, end, ts),arange(init+ts, end+ts, ts))
+    patt = []
+    spike   = []
+    for b in bins:
+        patt+= [sum( intersection(b, pati) for pati in pattern_intervals ) >= ts/2.]
+        spike+= [sum(insideInterval(spk, b) for spk in spiketimes) >= 1]
+
+    patt  = np.array(patt).astype(float);  npatt = abs(patt -1)  #s, ns
+    spike = np.array(spike).astype(float); nspike= abs(spike -1) #r, nr
 
     #probabilities
     pr = mean(spike); ps = mean(patt)
@@ -116,6 +113,7 @@ def mutualInformation(times,pattern_presence, voltimeter, init,Vr):
     if pnrs  != 0:  MI += pnrs* log2(pnrs/(pnr*ps))
     if prns  != 0:  MI += prns* log2(prns/(pr*pns))
     if pnrns != 0:  MI += pnrns*log2(pnrns/(pnr*pns))
+
 
     return MI
 
@@ -163,7 +161,7 @@ def masquelier(simTime=80*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau=2
     inputLayer.I = TimedArray((oscilAmp/2)*sin(2*pi*oscilFreq*dt*arange(float(simTime/dt)) - pi))
 
     # Get the activation levels' matrix and use as input current
-    acts, pattern_intervals, pattern_presence = activationLevels(N, simTime/second, patt_act, patt_range, toPlot=False)
+    acts, pattern_intervals = activationLevels(N, simTime/second, patt_act, patt_range, toPlot=False)
     inputLayer.actValue = (acts*0.12 + 0.95)*Ithr # Affine mapping between activation and input
 
     # Connect the layers
@@ -183,9 +181,9 @@ def masquelier(simTime=80*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau=2
 
     ## Run the simulation
     #Runs for stepInit time
-    stepInit=300*second
+    stepInit=5*second
     run(stepInit, report='text')
-
+    print(spikes_output[0])
     #Will run and calculate MI for each MIstep
     MIs=[0]
     nowTime=stepInit
@@ -270,4 +268,4 @@ def masquelier(simTime=80*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau=2
     return inputLayer, MI
 
 if __name__ == "__main__":
-    inputLayer, MI = masquelier(simTime = 800*second,MIstep=30*second)
+    inputLayer, MI = masquelier(simTime = 2*second,MIstep=30*second)
