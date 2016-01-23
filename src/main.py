@@ -9,6 +9,7 @@ import matplotlib.gridspec as gridspec
 # [*] Record voltage of output layer
 # [*] STDP
 # [*] Measure learning
+# [ ] Learn
 # [ ] More realistic model of CA1
 # [ ] Parameter search
 # [ ] Introduce more patterns
