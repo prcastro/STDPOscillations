@@ -176,7 +176,7 @@ def masquelier(simTime=1000*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau
 
     ## Run the simulation
     #Runs for stepInit time
-    stepInit=20*second
+    stepInit=350*second
     run(stepInit, report='text')
 
     # Will run and calculate MI for each MIstep
@@ -258,4 +258,4 @@ def masquelier(simTime=1000*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau
 
 
 if __name__ == "__main__":
-    inputLayer, MI = masquelier(simTime = 60*second, MIstep=5*second, R = 9*10e6*ohm)
+    inputLayer, MI = masquelier(simTime = 800*second, MIstep=30*second, R = 9*10e6*ohm)
