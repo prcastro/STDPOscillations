@@ -94,12 +94,9 @@ def mutualInformation(init,end, pattern_intervals, spiketimes):
     bins = zip(arange(init, end, ts),arange(init+ts, end+ts, ts))
     patt = []
     spike   = []
-    print(bins)
     for b in bins:
         patt+= [sum( intersection(b, pati) for pati in pattern_intervals ) >= ts/2.]
         spike+= [sum(insideInterval(spk, b) for spk in spiketimes) >= 1]
-    print(patt)
-    print(spike)
     patt  = np.array(patt).astype(float);  npatt = abs(patt -1)  #s, ns
     spike = np.array(spike).astype(float); nspike= abs(spike -1) #r, nr
 
@@ -110,7 +107,6 @@ def mutualInformation(init,end, pattern_intervals, spiketimes):
     prs  = dot( spike, patt)/len(patt);    pnrs = dot(nspike, patt)/len(patt);
     pnrns= dot(nspike,npatt)/len(patt);    prns = dot( spike,npatt)/len(patt);
 
-    print((pr, ps, pnr, pns, prs, pnrs, pnrns, prns))
     MI = 0
     if prs   != 0:  MI += prs*  log2(prs/(pr*ps))
     if pnrs  != 0:  MI += pnrs* log2(pnrs/(pnr*ps))
@@ -262,9 +258,4 @@ def masquelier(simTime=1000*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau
 
 
 if __name__ == "__main__":
-    init = 0
-    end  = 0.5
-    patint = [(0,0.1),(0.33,0.4)]
-    st = array([0.1,0.15])*second
-    print(mutualInformation(init,end,patint,st))
-    #inputLayer, MI = masquelier(simTime = 60*second, MIstep=5*second, R = 9*10e6*ohm)
+    inputLayer, MI = masquelier(simTime = 60*second, MIstep=5*second, R = 9*10e6*ohm)
