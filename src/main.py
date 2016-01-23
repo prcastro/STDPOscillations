@@ -81,8 +81,12 @@ def activationLevels(N, totalTime, pattern, patt_range, toPlot=True):
         plotActivations(activations, times, pattern_presence)
 
     return activations, pattern_intervals, pattern_presence
+#
+# times = [0,1,2,3]
+# voltimeter = [Vr]*20000 + [0]*20000
+# pattern_presence = [0.8, 1, 0.8, 1]
 
-def mutualInformation(times,pattern_presence, voltimeter, init,Vr):
+def mutualInformation(times,pattern_presence, voltimeter, init, Vr):
     timestep = 1250
     discrete_pat =[]
     #makes the pattern presence a True or false for each .1ms interval
@@ -96,8 +100,8 @@ def mutualInformation(times,pattern_presence, voltimeter, init,Vr):
     spike=[]
     #making
     for t in range(init*10000, int(times[-1]*10000)   ,timestep):
-        patt  += [sum(discrete_pat[t:t+timestep])>= timestep/2]
-        spike += [sum(voltimeter[0][t:t+timestep]==Vr) >=1]
+        patt  += [sum(discrete_pat[t:t+timestep]) >= timestep/2]
+        spike += [sum(voltimeter[0][t:t+timestep] == Vr) >= 1]
 
     patt  = np.array(patt).astype(float) #s
     spike = np.array(spike).astype(float) #r
@@ -119,7 +123,7 @@ def mutualInformation(times,pattern_presence, voltimeter, init,Vr):
 
     return MI
 
-def masquelier(simTime=80*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau=20*ms, taus=5*ms, taup=16.8*ms, taum=33.7*ms, aplus=0.005, aratio=1.48, R=9*(10**6)*ohm, oscilFreq=8, patt_act=rand(200), patt_range =(1800,2000), toPlot=True, MIstep=30*second):
+def masquelier(simTime=80*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau=20*ms, taus=5*ms, taup=16.8*ms, taum=33.7*ms, aplus=0.005, aratio=1.48, R=(10**6)*ohm, oscilFreq=8, patt_act=rand(200), patt_range =(1800,2000), toPlot=True, MIstep=30*second):
     '''This file executes the simulations (given the parameters),
     of Masquelier's model for learning and saves the results in
     appropriate files.
@@ -183,32 +187,27 @@ def masquelier(simTime=80*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau=2
 
     ## Run the simulation
     #Runs for stepInit time
-    stepInit=300*second
+    stepInit=180*second
     run(stepInit, report='text')
 
-    #Will run and calculate MI for each MIstep
-    MIs=[0]
-    nowTime=stepInit
-    changeMI=[]
-    steps=0
+    # Will run and calculate MI for each MIstep
+    MIs = [0]
+    nowTime  = stepInit
     while nowTime < simTime:
-        steps+=1
-        init = int(nowTime)
+        init   = int(nowTime)
         run(MIstep, report='text')
         nowTime += MIstep
         print('from '+str(init)+' to ' +str(nowTime))
-        MI= mutualInformation(acts.times,pattern_presence, voltimeter, init,Vr)
-        MIs += [MI]
-        changeMI+= [MIs[-1]-MIs[-2]]
-        print(str(MI)+" bits")
+        MIs += [mutualInformation(acts.times,pattern_presence, voltimeter, init,Vr)]
+        print(str(MIs[-1])+" bits")
         #IF the change in the last two iterations was < 1e-3, stops simulation
-        if steps > 3 and changeMI[-1]<1e-3 and changeMI[-2]<1e-3:
+        if len(MIs) > 3 and MIs[-1]-MIs[-2]<1e-3 and MIs[-2]-MIs[-3]<1e-3:
             print("Changes in MI too small, stopping simulation")
             break
 
     if toPlot:
-        st=simTime/second
-        xlims= array([ (st>5)*(st-5), st])
+        st    = simTime/second
+        xlims = array([ (st>5)*(st-5), st])
         # Update weights to the values found on the Connection object
         weights = con.W.todense()
 
@@ -253,7 +252,6 @@ def masquelier(simTime=80*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau=2
         ylabel('#', fontsize=10)
         xlabel('Normalized weight', fontsize=10)
 
-
         # Weights per activation of pattern's neurons
         subplot(gs[2,1])
         plot(patt_act, weights[patt_range[0]:patt_range[1]], '.', color='k')
@@ -267,7 +265,9 @@ def masquelier(simTime=80*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau=2
         # Save figure
         raster_voltage.savefig('summary' + '_f' + str(oscilFreq) + '_aratio' + str(aratio) + '_t' + str(simTime/second) +'_N' +str(N) +'.png')
 
-    return inputLayer, MI
+    return inputLayer, MIs
+
 
 if __name__ == "__main__":
-    inputLayer, MI = masquelier(simTime = 800*second,MIstep=30*second)
+    print("Pronto")
+    # inputLayer, MIs = masquelier(simTime = 300*second, aratio=1.4, R=9*(10**6)*ohm, MIstep=30*second)
