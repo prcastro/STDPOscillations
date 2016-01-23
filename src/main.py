@@ -89,15 +89,17 @@ def insideInterval(x, I):
     return x > I[0] and x < I[1]
 
 def mutualInformation(init,end, pattern_intervals, spiketimes):
-
     ts = 0.125 #timestep 125 milisseconds
+    spiketimes/=second
     bins = zip(arange(init, end, ts),arange(init+ts, end+ts, ts))
     patt = []
     spike   = []
+    print(bins)
     for b in bins:
         patt+= [sum( intersection(b, pati) for pati in pattern_intervals ) >= ts/2.]
         spike+= [sum(insideInterval(spk, b) for spk in spiketimes) >= 1]
-
+    print(patt)
+    print(spike)
     patt  = np.array(patt).astype(float);  npatt = abs(patt -1)  #s, ns
     spike = np.array(spike).astype(float); nspike= abs(spike -1) #r, nr
 
@@ -108,6 +110,7 @@ def mutualInformation(init,end, pattern_intervals, spiketimes):
     prs  = dot( spike, patt)/len(patt);    pnrs = dot(nspike, patt)/len(patt);
     pnrns= dot(nspike,npatt)/len(patt);    prns = dot( spike,npatt)/len(patt);
 
+    print((pr, ps, pnr, pns, prs, pnrs, pnrns, prns))
     MI = 0
     if prs   != 0:  MI += prs*  log2(prs/(pr*ps))
     if pnrs  != 0:  MI += pnrs* log2(pnrs/(pnr*ps))
@@ -117,7 +120,7 @@ def mutualInformation(init,end, pattern_intervals, spiketimes):
 
     return MI
 
-def masquelier(simTime=80*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau=20*ms, taus=5*ms, taup=16.8*ms, taum=33.7*ms, aplus=0.005, aratio=1.48, R=9*(10**6)*ohm, oscilFreq=8, patt_act=rand(200), patt_range =(1800,2000), toPlot=True, MIstep=30*second):
+def masquelier(simTime=1000*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau=20*ms, taus=5*ms, taup=16.8*ms, taum=33.7*ms, aplus=0.005, aratio=1.48, R=(10**6)*ohm, oscilFreq=8, patt_act=rand(200), patt_range =(1800,2000), toPlot=True, MIstep=30*second):
     '''This file executes the simulations (given the parameters),
     of Masquelier's model for learning and saves the results in
     appropriate files.
@@ -139,21 +142,17 @@ def masquelier(simTime=80*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau=2
     # Model of input neuron. Current comes from oscillatory input (I) and from
     # the activation levels (actValue, like Masquelier et al 2009 Figure 1). This
     # is based on Eq 1 of Masquelier et al 2009.
-    inputNeuron =  Equations('''
-    dV/dt = -(V-El - R*(I+actValue))/tau + sigma*xi/(tau**0.5): volt
+    neuronModel =  Equations('''
+    dV/dt = -(V-El - R*(I+actValue+(s*Imax)))/tau + sigma*xi/(tau**0.5): volt
     I: amp
     actValue: amp
-    ''')
-
-    outputNeuron =  Equations('''
-    dV/dt = -(V-El - R*(s*Imax))/tau + sigma*xi/(tau**0.5): volt
     ds/dt = -s/taus: 1
     ''')
 
     # Create neuron groups and set initial conditions
-    inputLayer    = NeuronGroup(N=N, model=inputNeuron, threshold=Vt, reset=Vr)
+    inputLayer    = NeuronGroup(N=N, model=neuronModel, threshold=Vt, reset=Vr)
     inputLayer.V  = Vr + rand(N)*(Vt - Vr) # Initial voltage
-    outputLayer   = NeuronGroup(N=1, model=outputNeuron, threshold=Vt, reset=Vr)
+    outputLayer   = NeuronGroup(N=1, model=neuronModel, threshold=Vt, reset=Vr)
     outputLayer.V = Vr + rand()*(Vt - Vr) # Initial voltage
 
     # Oscillatory drive on the input layer
@@ -181,32 +180,27 @@ def masquelier(simTime=80*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau=2
 
     ## Run the simulation
     #Runs for stepInit time
-    stepInit=5*second
+    stepInit=20*second
     run(stepInit, report='text')
-    print(spikes_output[0])
-    #Will run and calculate MI for each MIstep
-    MIs=[0]
-    nowTime=stepInit
-    changeMI=[]
-    steps=0
-    while nowTime < simTime:
-        steps+=1
-        init = int(nowTime)
+
+    # Will run and calculate MI for each MIstep
+    MIs = [0]
+    nowTime  = int(stepInit)
+    while nowTime*second < simTime:
+        init   = int(nowTime)
         run(MIstep, report='text')
-        nowTime += MIstep
+        nowTime += int(MIstep)
         print('from '+str(init)+' to ' +str(nowTime))
-        MI= mutualInformation(acts.times,pattern_presence, voltimeter, init,Vr)
-        MIs += [MI]
-        changeMI+= [MIs[-1]-MIs[-2]]
-        print(str(MI)+" bits")
+        MIs += [mutualInformation(init, nowTime, pattern_intervals, spikes_output[0])]
+        print(str(MIs[-1])+" bits")
         #IF the change in the last two iterations was < 1e-3, stops simulation
-        if steps > 3 and changeMI[-1]<1e-3 and changeMI[-2]<1e-3:
+        if len(MIs) > 3 and MIs[-1]-MIs[-2]<1e-3 and MIs[-2]-MIs[-3]<1e-3:
             print("Changes in MI too small, stopping simulation")
             break
 
     if toPlot:
-        st=simTime/second
-        xlims= array([ (st>5)*(st-5), st])
+        st    = simTime/second
+        xlims = array([ (st>5)*(st-5), st])
         # Update weights to the values found on the Connection object
         weights = con.W.todense()
 
@@ -251,7 +245,6 @@ def masquelier(simTime=80*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau=2
         ylabel('#', fontsize=10)
         xlabel('Normalized weight', fontsize=10)
 
-
         # Weights per activation of pattern's neurons
         subplot(gs[2,1])
         plot(patt_act, weights[patt_range[0]:patt_range[1]], '.', color='k')
@@ -265,7 +258,13 @@ def masquelier(simTime=80*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau=2
         # Save figure
         raster_voltage.savefig('summary' + '_f' + str(oscilFreq) + '_aratio' + str(aratio) + '_t' + str(simTime/second) +'_N' +str(N) +'.png')
 
-    return inputLayer, MI
+    return inputLayer, MIs
+
 
 if __name__ == "__main__":
-    inputLayer, MI = masquelier(simTime = 2*second,MIstep=30*second)
+    init = 0
+    end  = 0.5
+    patint = [(0,0.1),(0.33,0.4)]
+    st = array([0.1,0.15])*second
+    print(mutualInformation(init,end,patint,st))
+    #inputLayer, MI = masquelier(simTime = 60*second, MIstep=5*second, R = 9*10e6*ohm)
