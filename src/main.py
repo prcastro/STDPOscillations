@@ -95,7 +95,7 @@ def mutualInformation(times,pattern_presence, voltimeter, init,Vr):
     patt=[]
     spike=[]
     #making
-    for t in range(init, int(times[-1]*10000)   ,timestep):
+    for t in range(init*10000, int(times[-1]*10000)   ,timestep):
         patt  += [sum(discrete_pat[t:t+timestep])>= timestep/2]
         spike += [sum(voltimeter[0][t:t+timestep]==Vr) >=1]
 
@@ -105,28 +105,21 @@ def mutualInformation(times,pattern_presence, voltimeter, init,Vr):
     nspike= abs(spike -1)
 
     #probabilities
-    pr = mean(spike)
-    pnr=1-pr
-    ps = mean(patt)
-    pns=1-ps
-    prs  = dot(patt, spike)/len(patt)
-    pnrs = dot(nspike,patt)/len(patt)
-    prns = dot(spike,npatt)/len(patt)
-    pnrns= dot(nspike,npatt)/len(patt)
+    pr = mean(spike); ps = mean(patt)
+    pnr=1-pr        ; pns=1-ps
+
+    prs  = dot( spike, patt)/len(patt);    pnrs = dot(nspike, patt)/len(patt);
+    pnrns= dot(nspike,npatt)/len(patt);    prns = dot( spike,npatt)/len(patt);
 
     MI = 0
-    if prs   != 0:
-        MI += prs*  log2(prs/(pr*ps))
-    if pnrs  != 0:
-        MI += pnrs* log2(pnrs/(pnr*ps))
-    if prns  != 0:
-        MI += prns* log2(prns/(pr*pns))
-    if pnrns != 0:
-        MI += pnrns*log2(pnrns/(pnr*pns))
+    if prs   != 0:  MI += prs*  log2(prs/(pr*ps))
+    if pnrs  != 0:  MI += pnrs* log2(pnrs/(pnr*ps))
+    if prns  != 0:  MI += prns* log2(prns/(pr*pns))
+    if pnrns != 0:  MI += pnrns*log2(pnrns/(pnr*pns))
 
     return MI
 
-def masquelier(simTime=3*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau=20*ms, taus=5*ms, taup=16.8*ms, taum=33.7*ms, aplus=0.005, aratio=1.48, R=9*(10**6)*ohm, oscilFreq=8, patt_act=rand(200), patt_range=(1800,2000), toPlot=True):
+def masquelier(simTime=80*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau=20*ms, taus=5*ms, taup=16.8*ms, taum=33.7*ms, aplus=0.005, aratio=1.48, R=9*(10**6)*ohm, oscilFreq=8, patt_act=rand(200), patt_range =(1800,2000), toPlot=True, MIstep=30*second):
     '''This file executes the simulations (given the parameters),
     of Masquelier's model for learning and saves the results in
     appropriate files.
@@ -138,7 +131,6 @@ def masquelier(simTime=3*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau=20
 
     # Default timestep and number of steps
     dt = defaultclock.dt
-    total_steps = float(simTime/dt)
 
     # Size of noise, drives and weights
     sigma = 0.015*(Vt - Vr)
@@ -168,7 +160,7 @@ def masquelier(simTime=3*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau=20
 
     # Oscillatory drive on the input layer
     oscilAmp     = 0.15*Ithr
-    inputLayer.I = TimedArray((oscilAmp/2)*sin(2*pi*oscilFreq*dt*arange(total_steps) - pi))
+    inputLayer.I = TimedArray((oscilAmp/2)*sin(2*pi*oscilFreq*dt*arange(float(simTime/dt)) - pi))
 
     # Get the activation levels' matrix and use as input current
     acts, pattern_intervals, pattern_presence = activationLevels(N, simTime/second, patt_act, patt_range, toPlot=False)
@@ -189,13 +181,34 @@ def masquelier(simTime=3*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau=20
     amperimeter = StateMonitor(inputLayer, 'I', record=0)
 
 
-    # Run the simulation
-    run(simTime, report='text')
-    init = 0
-    MI = mutualInformation(acts.times,pattern_presence, voltimeter, init,Vr)
-    print(str(MI)+" bits")
+    ## Run the simulation
+    #Runs for stepInit time
+    stepInit=300*second
+    run(stepInit, report='text')
+
+    #Will run and calculate MI for each MIstep
+    MIs=[0]
+    nowTime=stepInit
+    changeMI=[]
+    steps=0
+    while nowTime < simTime:
+        steps+=1
+        init = int(nowTime)
+        run(MIstep, report='text')
+        nowTime += MIstep
+        print('from '+str(init)+' to ' +str(nowTime))
+        MI= mutualInformation(acts.times,pattern_presence, voltimeter, init,Vr)
+        MIs += [MI]
+        changeMI+= [MIs[-1]-MIs[-2]]
+        print(str(MI)+" bits")
+        #IF the change in the last two iterations was < 1e-3, stops simulation
+        if steps > 3 and changeMI[-1]<1e-3 and changeMI[-2]<1e-3:
+            print("Changes in MI too small, stopping simulation")
+            break
 
     if toPlot:
+        st=simTime/second
+        xlims= array([ (st>5)*(st-5), st])
         # Update weights to the values found on the Connection object
         weights = con.W.todense()
 
@@ -212,7 +225,7 @@ def masquelier(simTime=3*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau=20
         # Plot grey stripe on spike intervals
         for start, end in pattern_intervals:
             axvspan(start*1000, end*1000, color='grey', alpha=0.5, lw=0)
-        #xlim(1000e3-5e3, 1000e3)
+        xlim(xlims*1e3)
         ylabel('Afferent #')
         xlabel('Time (in ms)', fontsize=10)
 
@@ -226,8 +239,7 @@ def masquelier(simTime=3*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau=20
         # Plot grey stripe on spike intervals
         for start, end in pattern_intervals:
             axvspan(start, end, color='grey', alpha=0.5, lw=0)
-
-        # xlim(1000-5, 1000)
+        xlim(xlims)
         ylim(-70, -53)
 
         xlabel('Time (in s)', fontsize=10)
@@ -253,9 +265,9 @@ def masquelier(simTime=3*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau=20
         raster_voltage.show()
 
         # Save figure
-        raster_voltage.savefig('summary' + '_f' + str(oscilFreq) + '_aratio' + str(aratio) + '_t' + str(simTime/second) + '.png')
+        raster_voltage.savefig('summary' + '_f' + str(oscilFreq) + '_aratio' + str(aratio) + '_t' + str(simTime/second) +'_N' +str(N) +'.png')
 
     return inputLayer, MI
 
 if __name__ == "__main__":
-    inputLayer, MI = masquelier(simTime = 3*second)
+    inputLayer, MI = masquelier(simTime = 800*second,MIstep=30*second)
