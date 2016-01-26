@@ -30,6 +30,7 @@ def plotActivations(values, times, pattern_presence):
 
     matshow(discrete_actv + presence, cmap=plt.cm.gray)
     show()
+
 def NEWactivationLevels(N, totalTime, Npatt, patt_range, toPlot=True):
     '''This function return the activation levels matrix with
     the level of activation of each neuron over time. This is returned as
@@ -210,12 +211,16 @@ def masquelier(simTime=1000*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau
     inputLayer.I = TimedArray((oscilAmp/2)*sin(2*pi*oscilFreq*dt*arange(float(simTime/dt)) - pi))
 
     # Get the activation levels' matrix and use as input current
-    acts, pattern_intervals = NEWactivationLevels(N, simTime/second, 3, patt_range, toPlot=True)
+    acts, pattern_intervals = NEWactivationLevels(N, simTime/second, 3, patt_range, toPlot=False)
     inputLayer.actValue = (acts*0.12 + 0.95)*Ithr # Affine mapping between activation and input
 
     # Connect the layers
     weights = rand(N, 1) * wmax
-    con     = Connection(inputLayer, outputLayer, 's', weight=weights)
+    con     = Connection(inputLayer, outputLayer, 's', weight=weights)s
+
+
+
+    # end of connecting layer
 
     # STDP synapse
     aminus = -(aplus * aratio)
@@ -229,7 +234,7 @@ def masquelier(simTime=1000*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau
 
     # Run the simulation
     # Runs for initialStep time
-    initialStep=100*second
+    initialStep=10*second
     run(initialStep, report='text')
 
     # Will run and calculate MI for each MIstep
@@ -239,7 +244,7 @@ def masquelier(simTime=1000*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau
         init = int(nowTime)
         run(MIstep, report='text')
         nowTime += int(MIstep)
-        MIs += [mutualInformation(init, nowTime, pattern_intervals, spikes_output[0])]
+        MIs += [mutualInformation(init, nowTime, pattern_intervals[0], spikes_output[0])]
         print('from '+str(init)+' to ' +str(nowTime))
         print(str(MIs[-1])+" bits")
         # If the change in the last two iterations was < 1e-3, stop simulating
@@ -264,8 +269,12 @@ def masquelier(simTime=1000*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau
         subplot(gs[0,:])
         raster_plot(spikes_input, markersize=4, color='k')
         # Plot grey stripe on spike intervals
-        for start, end in pattern_intervals:
-            axvspan(start*1000, end*1000, color='grey', alpha=0.5, lw=0)
+        for start, end in pattern_intervals[0]:
+            axvspan(start*1000, end*1000, color='orange', alpha=0.5, lw=0)
+        for start, end in pattern_intervals[1]:
+            axvspan(start*1000, end*1000, color='blue', alpha=0.5, lw=0)
+        for start, end in pattern_intervals[2]:
+            axvspan(start*1000, end*1000, color='green', alpha=0.5, lw=0)
         xlim(xlims*1e3)
         ylabel('Afferent #')
         xlabel('Time (in ms)', fontsize=10)
@@ -278,8 +287,12 @@ def masquelier(simTime=1000*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau
         for t in spikes_output[0]:
             axvline(t, linestyle=':', color='k')
         # Plot grey stripe on spike intervals
-        for start, end in pattern_intervals:
-            axvspan(start, end, color='grey', alpha=0.5, lw=0)
+        for start, end in pattern_intervals[0]:
+            axvspan(start, end, color='orange', alpha=0.5, lw=0)
+        for start, end in pattern_intervals[1]:
+            axvspan(start, end, color='blue', alpha=0.5, lw=0)
+        for start, end in pattern_intervals[2]:
+            axvspan(start, end, color='green', alpha=0.5, lw=0)
         xlim(xlims)
         ylim(-70, -53)
 
@@ -310,4 +323,4 @@ def masquelier(simTime=1000*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau
     return inputLayer, MIs
 
 if __name__ == "__main__":
-    inputLayer, MI = masquelier(simTime = 3*second, MIstep=30*second, R = 7.9e6*ohm)
+    inputLayer, MI = masquelier(simTime = 100*second, MIstep=30*second, R = 7.9e6*ohm)
