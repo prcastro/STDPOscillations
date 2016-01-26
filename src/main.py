@@ -9,6 +9,7 @@ import matplotlib.gridspec as gridspec
 # [*] Record voltage of output layer
 # [*] STDP
 # [*] Measure learning
+# [ ] Learn
 # [ ] More realistic model of CA1
 # [ ] Parameter search
 # [ ] Introduce more patterns
@@ -89,30 +90,28 @@ def insideInterval(x, I):
     return x > I[0] and x < I[1]
 
 def mutualInformation(init,end, pattern_intervals, spiketimes):
-    ts = 0.125 #timestep 125 milisseconds
-    spiketimes/=second
+    ts = 0.125 # Timestep 125 milisseconds
+    spiketimes /= second
     bins = zip(arange(init, end, ts),arange(init+ts, end+ts, ts))
-    patt = []
-    spike   = []
+    patt  = []
+    spike = []
     for b in bins:
-        patt+= [sum( intersection(b, pati) for pati in pattern_intervals ) >= ts/2.]
-        spike+= [sum(insideInterval(spk, b) for spk in spiketimes) >= 1]
-    patt  = np.array(patt).astype(float);  npatt = abs(patt -1)  #s, ns
-    spike = np.array(spike).astype(float); nspike= abs(spike -1) #r, nr
+        patt  += [sum( intersection(b, pati) for pati in pattern_intervals ) >= ts/2.]
+        spike += [sum(insideInterval(spk, b) for spk in spiketimes) >= 1]
+    patt  = np.array(patt).astype(float) ; npatt  = abs(patt -1)  # s, ns
+    spike = np.array(spike).astype(float); nspike = abs(spike -1) # r, nr
 
-    #probabilities
-    pr = mean(spike); ps = mean(patt)
-    pnr=1-pr        ; pns=1-ps
-
-    prs  = dot( spike, patt)/len(patt);    pnrs = dot(nspike, patt)/len(patt);
-    pnrns= dot(nspike,npatt)/len(patt);    prns = dot( spike,npatt)/len(patt);
+    # Probabilities
+    pr    = mean(spike)                   ; pnr   = 1 - pr
+    ps    = mean(patt)                    ; pns   = 1 - ps
+    prs   = dot(spike , patt) / len(patt) ; pnrs  = dot(nspike, patt) / len(patt);
+    prns  = dot(spike , npatt)/ len(patt) ; pnrns = dot(nspike, npatt)/ len(patt)
 
     MI = 0
-    if prs   != 0:  MI += prs*  log2(prs/(pr*ps))
-    if pnrs  != 0:  MI += pnrs* log2(pnrs/(pnr*ps))
-    if prns  != 0:  MI += prns* log2(prns/(pr*pns))
-    if pnrns != 0:  MI += pnrns*log2(pnrns/(pnr*pns))
-
+    if prs   != 0: MI += prs   * log2(prs   / (pr*ps)  )
+    if pnrs  != 0: MI += pnrs  * log2(pnrs  / (pnr*ps) )
+    if prns  != 0: MI += prns  * log2(prns  / (pr*pns) )
+    if pnrns != 0: MI += pnrns * log2(pnrns / (pnr*pns))
 
     return MI
 
@@ -136,8 +135,8 @@ def masquelier(simTime=1000*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau
     wmax  = 2*(8.6 * pamp/Imax)
 
     # Model of input neuron. Current comes from oscillatory input (I) and from
-    # the activation levels (actValue, like Masquelier et al 2009 Figure 1). This
-    # is based on Eq 1 of Masquelier et al 2009.
+    #  the activation levels (actValue, like Masquelier et al 2009 Figure 1). This
+    #  is based on Eq 1 of Masquelier et al 2009.
     neuronModel =  Equations('''
     dV/dt = -(V-El - R*(I+actValue+(s*Imax)))/tau + sigma*xi/(tau**0.5): volt
     I: amp
@@ -168,28 +167,27 @@ def masquelier(simTime=1000*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau
     stdp   = ExponentialSTDP(con, taup, taum, aplus, aminus, wmax=1, interactions='all', update='additive')
 
     # Mesurement devices
-    spikes_input = SpikeMonitor(inputLayer[patt_range[0]-50:patt_range[1]-50])
+    spikes_input  = SpikeMonitor(inputLayer[patt_range[0]-50:patt_range[1]-50])
     spikes_output = SpikeMonitor(outputLayer)
-    voltimeter  = StateMonitor(outputLayer, 'V', record=0)
-    amperimeter = StateMonitor(inputLayer, 'I', record=0)
+    voltimeter    = StateMonitor(outputLayer, 'V', record=0)
+    amperimeter   = StateMonitor(inputLayer, 'I', record=0)
 
-
-    ## Run the simulation
-    #Runs for stepInit time
-    stepInit=350*second
-    run(stepInit, report='text')
+    # Run the simulation
+    # Runs for initialStep time
+    initialStep=350*second
+    run(initialStep, report='text')
 
     # Will run and calculate MI for each MIstep
-    MIs = [0]
-    nowTime  = int(stepInit)
+    MIs     = [0]
+    nowTime = int(initialStep)
     while nowTime*second < simTime:
-        init   = int(nowTime)
+        init = int(nowTime)
         run(MIstep, report='text')
         nowTime += int(MIstep)
-        print('from '+str(init)+' to ' +str(nowTime))
         MIs += [mutualInformation(init, nowTime, pattern_intervals, spikes_output[0])]
+        print('from '+str(init)+' to ' +str(nowTime))
         print(str(MIs[-1])+" bits")
-        #IF the change in the last two iterations was < 1e-3, stops simulation
+        # If the change in the last two iterations was < 1e-3, stop simulating
         if len(MIs) > 3 and MIs[-1]-MIs[-2]<1e-3 and MIs[-2]-MIs[-3]<1e-3:
             print("Changes in MI too small, stopping simulation")
             break
@@ -255,7 +253,6 @@ def masquelier(simTime=1000*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau
         raster_voltage.savefig('summary' + '_f' + str(oscilFreq) + '_aratio' + str(aratio) + '_t' + str(simTime/second) +'_N' +str(N) +'.png')
 
     return inputLayer, MIs
-
 
 if __name__ == "__main__":
     inputLayer, MI = masquelier(simTime = 800*second, MIstep=30*second, R = 9*10e6*ohm)
