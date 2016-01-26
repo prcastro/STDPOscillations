@@ -174,7 +174,7 @@ def mutualInformation(init,end, pattern_intervals, spiketimes):
 
     return MI
 
-def masquelier(simTime=1000*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau=20*ms, taus=5*ms, taup=16.8*ms, taum=33.7*ms, aplus=0.005, aratio=1.48, R=(10**6)*ohm, oscilFreq=8, patt_act=rand(200), patt_range =(1800,2000), toPlot=True, MIstep=30*second):
+def masquelier(simTime=1000*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau=20*ms, taus=5*ms, taup=16.8*ms, taum=33.7*ms, aplus=0.005, aratio=1.48, R=(10**6)*ohm, oscilFreq=8, patt_act=rand(200), patt_range =(1800,2000), toPlot=True, MIstep=30*second, Npatt = 3):
     '''This file executes the simulations (given the parameters),
     of Masquelier's model for learning and saves the results in
     appropriate files.
@@ -206,24 +206,23 @@ def masquelier(simTime=1000*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau
     # Create neuron groups and set initial conditions
     inputLayer    = NeuronGroup(N=N, model=neuronModel, threshold=Vt, reset=Vr)
     inputLayer.V  = Vr + rand(N)*(Vt - Vr) # Initial voltage
-    outputLayer   = NeuronGroup(N=1, model=neuronModel, threshold=Vt, reset=Vr)
-    outputLayer.V = Vr + rand()*(Vt - Vr) # Initial voltage
+    outputLayer   = NeuronGroup(N=Npatt, model=neuronModel, threshold=Vt, reset=Vr)
+    outputLayer.V = Vr + rand(Npatt)*(Vt - Vr) # Initial voltage
 
     # Oscillatory drive on the input layer
     oscilAmp     = 0.15*Ithr
     inputLayer.I = TimedArray((oscilAmp/2)*sin(2*pi*oscilFreq*dt*arange(float(simTime/dt)) - pi))
 
     # Get the activation levels' matrix and use as input current
-    acts, pattern_intervals = NEWactivationLevels(N, simTime/second, 3, patt_range, toPlot=False)
+    acts, pattern_intervals = NEWactivationLevels(N, simTime/second, Npatt, patt_range, toPlot=False)
     inputLayer.actValue = (acts*0.12 + 0.95)*Ithr # Affine mapping between activation and input
 
     # Connect the layers
     weights = rand(N, 1) * wmax
-    con     = Connection(inputLayer, outputLayer, 's', weight=weights)s
+    con     = Connection(inputLayer, outputLayer, 's', weight=weights, delay=True, max_delay=2*ms)
+    con.delay[1800:1900, 0] = 1*ms
 
-
-
-    # end of connecting layer
+    # end of connecting layers
 
     # STDP synapse
     aminus = -(aplus * aratio)
@@ -274,10 +273,10 @@ def masquelier(simTime=1000*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau
         # Plot grey stripe on spike intervals
         for start, end in pattern_intervals[0]:
             axvspan(start*1000, end*1000, color='orange', alpha=0.5, lw=0)
-        for start, end in pattern_intervals[1]:
-            axvspan(start*1000, end*1000, color='blue', alpha=0.5, lw=0)
-        for start, end in pattern_intervals[2]:
-            axvspan(start*1000, end*1000, color='green', alpha=0.5, lw=0)
+        # for start, end in pattern_intervals[1]:
+        #     axvspan(start*1000, end*1000, color='blue', alpha=0.5, lw=0)
+        # for start, end in pattern_intervals[2]:
+        #     axvspan(start*1000, end*1000, color='green', alpha=0.5, lw=0)
         xlim(xlims*1e3)
         ylabel('Afferent #')
         xlabel('Time (in ms)', fontsize=10)
@@ -292,10 +291,10 @@ def masquelier(simTime=1000*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau
         # Plot grey stripe on spike intervals
         for start, end in pattern_intervals[0]:
             axvspan(start, end, color='orange', alpha=0.5, lw=0)
-        for start, end in pattern_intervals[1]:
-            axvspan(start, end, color='blue', alpha=0.5, lw=0)
-        for start, end in pattern_intervals[2]:
-            axvspan(start, end, color='green', alpha=0.5, lw=0)
+        # for start, end in pattern_intervals[1]:
+        #     axvspan(start, end, color='blue', alpha=0.5, lw=0)
+        # for start, end in pattern_intervals[2]:
+        #     axvspan(start, end, color='green', alpha=0.5, lw=0)
         xlim(xlims)
         ylim(-70, -53)
 
@@ -326,4 +325,4 @@ def masquelier(simTime=1000*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau
     return inputLayer, MIs
 
 if __name__ == "__main__":
-    inputLayer, MI = masquelier(simTime = 100*second, MIstep=30*second, R = 7.9e6*ohm)
+    inputLayer, MI = masquelier(simTime = 5*second, MIstep=50*second, R = 7.9e6*ohm, Npatt = 1)
