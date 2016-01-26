@@ -220,7 +220,8 @@ def masquelier(simTime=1000*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau
     # Connect the layers
     weights = rand(N, 1) * wmax
     con     = Connection(inputLayer, outputLayer, 's', weight=weights, delay=True, max_delay=2*ms)
-    con.delay[1800:1900, 0] = 1*ms
+    con.delay[1800:1900, 0] = 0*ms
+    con.delay[1900:2000, 0] = 2*ms
 
     # end of connecting layers
 
@@ -325,4 +326,4 @@ def masquelier(simTime=1000*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau
     return inputLayer, MIs
 
 if __name__ == "__main__":
-    inputLayer, MI = masquelier(simTime = 5*second, MIstep=50*second, R = 7.9e6*ohm, Npatt = 1)
+    inputLayer, MI = masquelier(simTime = 25*second, MIstep=50*second, R = 7.9e6*ohm, Npatt = 1)
