@@ -17,7 +17,7 @@ import matplotlib.gridspec as gridspec
 
 def plotActivations(values, times, pattern_presence):
     N = len(values[0])
-    numPatterns = len(pattern_presence)
+    Npatt = len(pattern_presence)
     discrete_actv=[[] for i in range(N)]
     presence = [[] for i in range(20)]
     for n in range(N):
@@ -27,24 +27,20 @@ def plotActivations(values, times, pattern_presence):
             while t < times[ti]:
                 discrete_actv[n] += [values[ti-1][n]]
                 if n in range(20):
-                    signal = sum(pattern_presence[p][ti-1] for p in range(numPatterns))
-                    presence[n]  += [1 - (1.0/(numPatterns)) * signal]
+                    signal = sum(pattern_presence[p][ti-1] for p in range(Npatt))
+                    presence[n]  += [1 - (1.0/(Npatt)) * signal]
                 t+=0.01 # In seconds
 
     matshow(discrete_actv + presence, cmap=plt.cm.gray)
     show()
 
-def NEWactivationLevels(N, totalTime, Npatt, patt_range, toPlot=True):
+def activationLevels(N, totalTime, Npatt, patterns, patt_ranges, toPlot=True):
     '''This function return the activation levels matrix with
     the level of activation of each neuron over time. This is returned as
     a TimedArray. The list of the times in each the pattern in present is
     returned as well'''
     mean_dt   = 250e-3
     mean_dpat = 1250e-3
-
-    patterns = rand(200,Npatt)
-    patt_ranges = [(1500,1700),(1700,1900),(1800,2000)]
-
 
     # Time intervals
     times = []
@@ -55,7 +51,7 @@ def NEWactivationLevels(N, totalTime, Npatt, patt_range, toPlot=True):
     times.append(totalTime)
     len_t = len(times)
 
-    #creating patterns
+    # Creating patterns
     pattern_times = [rd.sample(range(len_t), len_t//5) for i in range(Npatt)]
     pattern_presence = array([ [ 1 if j in pattern_times[i][:] else 0  for j in range(len_t)] for i in range(Npatt)])
 
@@ -84,59 +80,6 @@ def NEWactivationLevels(N, totalTime, Npatt, patt_range, toPlot=True):
         pattern_intervals += [zip(starts, ends)]
 
     # Plot activation matrix
-    if toPlot:
-        plotActivations(activations, times, pattern_presence)
-
-    return activations, pattern_intervals
-
-def activationLevels(N, totalTime, pattern, patt_range, toPlot=True):
-    '''This function return the activation levels matrix with
-    the level of activation of each neuron over time. This is returned as
-    a TimedArray. The list of the times in each the pattern in present is
-    returned as well'''
-    mean_dt   = 250e-3
-    mean_dpat = 1250e-3
-
-    # Time intervals
-    times = []
-    t = 0
-    while t < totalTime:
-        times.append(t)
-        t+= np.random.exponential(mean_dt)
-    times.append(totalTime)
-
-    # Time of pattern arrivals
-    ptimes = []
-    t = exponential(mean_dpat)
-    while t < totalTime:
-        ptimes.append(t)
-        t += np.random.exponential(mean_dpat)
-
-    # Put patterns' times in the array, and sort
-    times += ptimes
-    times  = sort(times)
-
-    # Random activation matrix - the last 21 rows are for pattern
-    #  identification (grey when present and white when not)
-    activations = rand(len(times), N)
-    pattern_presence = zeros(len(times))
-
-    # Add patterns to activation matrix, and also the identification at
-    #  the bottom
-    for (i,t) in enumerate(times):
-        if t in ptimes:
-            activations[i, patt_range[0]:patt_range[1]] = pattern
-            pattern_presence[i] = 1
-
-    # Make the activations' TimedArray
-    activations = TimedArray(activations,times)
-
-    # Transform pattern presence array into pattern intervals
-    starts  = activations.times[pattern_presence == 1]
-    shifted = array([0] + list(pattern_presence)[:-1])
-    ends    = activations.times[shifted == 1]
-    pattern_intervals = zip(starts, ends)
-
     if toPlot:
         plotActivations(activations, times, pattern_presence)
 
@@ -174,15 +117,16 @@ def mutualInformation(init,end, pattern_intervals, spiketimes):
 
     return MI
 
-def masquelier(simTime=1000*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau=20*ms, taus=5*ms, taup=16.8*ms, taum=33.7*ms, aplus=0.005, aratio=1.48, R=(10**6)*ohm, oscilFreq=8, patt_act=rand(200), patt_range =(1800,2000), toPlot=True, MIstep=30*second):
+def masquelier(simTime=1000*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau=20*ms, taus=5*ms, taup=16.8*ms, taum=33.7*ms, aplus=0.005, aratio=1.48, R=(10**6)*ohm, oscilFreq=8, patt_act=rand(200,1), Npatt=1, patt_ranges =[(1800,2000)], toPlot=True, MIstep=30*second):
     '''This file executes the simulations (given the parameters),
     of Masquelier's model for learning and saves the results in
     appropriate files.
 
     Note: R is nine times larger than in the paper'''
 
-    if len(patt_act) != (patt_range[1] - patt_range[0]):
-        raise ValueError("Pattern activation must be consistent with pattern range")
+    for p in range(Npatt):
+        if len(patt_act[:,p]) != (patt_ranges[p][1] - patt_ranges[p][0]):
+            raise ValueError("Pattern activation must be consistent with pattern range")
 
     # Default timestep and number of steps
     dt = defaultclock.dt
@@ -214,13 +158,12 @@ def masquelier(simTime=1000*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau
     inputLayer.I = TimedArray((oscilAmp/2)*sin(2*pi*oscilFreq*dt*arange(float(simTime/dt)) - pi))
 
     # Get the activation levels' matrix and use as input current
-    acts, pattern_intervals = NEWactivationLevels(N, simTime/second, 3, patt_range, toPlot=False)
+    acts, pattern_intervals = activationLevels(N, simTime/second, Npatt, patt_act, patt_ranges, toPlot=False)
     inputLayer.actValue = (acts*0.12 + 0.95)*Ithr # Affine mapping between activation and input
 
     # Connect the layers
     weights = rand(N, 1) * wmax
-    con     = Connection(inputLayer, outputLayer, 's', weight=weights)s
-
+    con     = Connection(inputLayer, outputLayer, 's', weight=weights)
 
 
     # end of connecting layer
@@ -230,7 +173,11 @@ def masquelier(simTime=1000*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau
     stdp   = ExponentialSTDP(con, taup, taum, aplus, aminus, wmax=1, interactions='all', update='additive')
 
     # Mesurement devices
-    spikes_input  = SpikeMonitor(inputLayer[patt_range[0]-50:patt_range[1]-50])
+    low = min(range[0] for range in patt_ranges)
+    low -= 50*(low >= 50)
+    high = max(range[1] for range in patt_ranges)
+    high += 50*(high < N-50) - 1
+    spikes_input  = SpikeMonitor(inputLayer[low:high])
     spikes_output = SpikeMonitor(outputLayer)
     voltimeter    = StateMonitor(outputLayer, 'V', record=0)
     amperimeter   = StateMonitor(inputLayer, 'I', record=0)
@@ -271,13 +218,14 @@ def masquelier(simTime=1000*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau
         # Raster plot
         subplot(gs[0,:])
         raster_plot(spikes_input, markersize=4, color='k')
-        # Plot grey stripe on spike intervals
+        # Plot colored stripes on spike intervals
+        #  TODO: change this to work for any number of patterns
         for start, end in pattern_intervals[0]:
             axvspan(start*1000, end*1000, color='orange', alpha=0.5, lw=0)
-        for start, end in pattern_intervals[1]:
-            axvspan(start*1000, end*1000, color='blue', alpha=0.5, lw=0)
-        for start, end in pattern_intervals[2]:
-            axvspan(start*1000, end*1000, color='green', alpha=0.5, lw=0)
+        # for start, end in pattern_intervals[1]:
+        #     axvspan(start*1000, end*1000, color='blue', alpha=0.5, lw=0)
+        # for start, end in pattern_intervals[2]:
+        #     axvspan(start*1000, end*1000, color='green', alpha=0.5, lw=0)
         xlim(xlims*1e3)
         ylabel('Afferent #')
         xlabel('Time (in ms)', fontsize=10)
@@ -289,16 +237,16 @@ def masquelier(simTime=1000*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau
         # Plot action potentials
         for t in spikes_output[0]:
             axvline(t, linestyle=':', color='k')
-        # Plot grey stripe on spike intervals
+        # Plot colored stripes on spike intervals
+        #  TODO: change this to work for any number of patterns
         for start, end in pattern_intervals[0]:
             axvspan(start, end, color='orange', alpha=0.5, lw=0)
-        for start, end in pattern_intervals[1]:
-            axvspan(start, end, color='blue', alpha=0.5, lw=0)
-        for start, end in pattern_intervals[2]:
-            axvspan(start, end, color='green', alpha=0.5, lw=0)
+        # for start, end in pattern_intervals[1]:
+        #     axvspan(start, end, color='blue', alpha=0.5, lw=0)
+        # for start, end in pattern_intervals[2]:
+        #     axvspan(start, end, color='green', alpha=0.5, lw=0)
         xlim(xlims)
         ylim(-70, -53)
-
         xlabel('Time (in s)', fontsize=10)
         ylabel('Membrane potential (in mV)', fontsize=10)
 
@@ -310,12 +258,12 @@ def masquelier(simTime=1000*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau
         ylabel('#', fontsize=10)
         xlabel('Normalized weight', fontsize=10)
 
-        # Weights per activation of pattern's neurons
-        subplot(gs[2,1])
-        plot(patt_act, weights[patt_range[0]:patt_range[1]], '.', color='k')
-        ylim(0, 1.0)
-        ylabel('Weight')
-        xlabel('Pattern activation level')
+        # # Weights per activation of pattern's neurons
+        # subplot(gs[2,1])
+        # plot(patt_act[0], weights[patt_ranges[0]:patt_ranges[1]], '.', color='k')
+        # ylim(0, 1.0)
+        # ylabel('Weight')
+        # xlabel('Pattern activation level')
 
         # Show the figure
         raster_voltage.show()
@@ -326,4 +274,4 @@ def masquelier(simTime=1000*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau
     return inputLayer, MIs
 
 if __name__ == "__main__":
-    inputLayer, MI = masquelier(simTime = 100*second, MIstep=30*second, R = 7.9e6*ohm)
+    inputLayer, MI = masquelier(simTime = 3*second, MIstep=30*second, R = 7.9e6*ohm)
