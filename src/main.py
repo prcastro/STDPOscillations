@@ -117,16 +117,20 @@ def mutualInformation(init,end, pattern_intervals, spiketimes):
 
     return MI
 
-def masquelier(simTime=1000*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau=20*ms, taus=5*ms, taup=16.8*ms, taum=33.7*ms, aplus=0.005, aratio=1.48, R=(10**6)*ohm, oscilFreq=8, patt_act=rand(200,1), Npatt=1, patt_ranges =[(1800,2000)], toPlot=True, MIstep=30*second):
+def masquelier(simTime=1000*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau=20*ms, taus=5*ms, taup=16.8*ms, taum=33.7*ms, aplus=0.005, aratio=1.48, R=(10**6)*ohm, oscilFreq=8, patt_act=rand(200,1), patt_ranges =[(1800,2000)], toPlot=True, MIstep=30*second):
     '''This file executes the simulations (given the parameters),
     of Masquelier's model for learning and saves the results in
     appropriate files.
 
     Note: R is nine times larger than in the paper'''
 
+    Npatt = len(patt_ranges)
+    if Npatt != patt_act.shape[1]:
+        raise ValueError("Number of columns of pattern activations must be the same number of pattern ranges")
+
     for p in range(Npatt):
         if len(patt_act[:,p]) != (patt_ranges[p][1] - patt_ranges[p][0]):
-            raise ValueError("Pattern activation must be consistent with pattern range")
+            raise ValueError("Pattern #$Npatt activation must be consistent with pattern range")
 
     # Default timestep and number of steps
     dt = defaultclock.dt
@@ -210,9 +214,9 @@ def masquelier(simTime=1000*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau
         print('from '+str(init)+' to ' +str(nowTime))
         print(str(MIs[-1])+" bits")
         # If the change in the last two iterations was < 1e-3, stop simulating
-        if len(MIs) > 3 and MIs[-1]-MIs[-2]<1e-3 and MIs[-2]-MIs[-3]<1e-3:
-            print("Changes in MI too small, stopping simulation")
-            break
+        # if len(MIs) > 3 and MIs[-1]-MIs[-2]<1e-3 and MIs[-2]-MIs[-3]<1e-3:
+        #     print("Changes in MI too small, stopping simulation")
+        #     break
 
     if toPlot:
         st    = simTime/second
@@ -263,12 +267,12 @@ def masquelier(simTime=1000*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau
         ylabel('#', fontsize=10)
         xlabel('Normalized weight', fontsize=10)
 
-        # # Weights per activation of pattern's neurons
-        # subplot(gs[2,1])
-        # plot(patt_act[0], weights[patt_ranges[0]:patt_ranges[1]], '.', color='k')
-        # ylim(0, 1.0)
-        # ylabel('Weight')
-        # xlabel('Pattern activation level')
+        # Weights per activation of pattern's neurons
+        subplot(gs[2,1])
+        plot(patt_act[0], weights[patt_ranges[0]:patt_ranges[1]], '.', color='k')
+        ylim(0, 1.0)
+        ylabel('Weight')
+        xlabel('Pattern activation level')
 
         # Show the figure
         raster_voltage.show()
@@ -279,5 +283,4 @@ def masquelier(simTime=1000*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau
     return inputLayer, MIs
 
 if __name__ == "__main__":
-    #inputLayer, MI = masquelier(simTime = 3*second, MIstep=10*second, R = 7.9e6*ohm, Npatt = 3, patt_act=rand(400,3), patt_ranges=[(900,1300),(1300,1700),(1600,2000)])
-    inputLayer, MI = masquelier(simTime = 200*second, MIstep=10*second,aplus=0.00505,aratio=1.4, R = 7.9e6*ohm, Npatt = 1, patt_act=rand(400,1), patt_ranges=[(1600,2000)])
+    inputLayer, MI = masquelier(simTime = 400*second, MIstep=30*second, aplus=0.00505, aratio=1.4, R=7.9e6*ohm, patt_act=rand(400,1)*0.5+0.5, patt_ranges =[(1600,2000)])
