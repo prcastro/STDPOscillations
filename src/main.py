@@ -10,26 +10,30 @@ import matplotlib.gridspec as gridspec
 # [*] Record voltage of output layer
 # [*] STDP
 # [*] Measure learning
-# [ ] Learn
+# [*] Learn
 # [ ] More realistic model of CA1
 # [ ] Parameter search
 # [ ] Introduce more patterns
 
 def plotActivations(values, times, pattern_presence):
     N = len(values[0])
+    numPatterns = len(pattern_presence)
     discrete_actv=[[] for i in range(N)]
     presence = [[] for i in range(20)]
     for n in range(N):
+        print(n)
         for ti in range(1,len(times)):
             t = times[ti-1]
             while t < times[ti]:
                 discrete_actv[n] += [values[ti-1][n]]
                 if n in range(20):
-                    presence[n] +=[pattern_presence[ti-1]]
+                    signal = sum(pattern_presence[p][ti-1] for p in range(numPatterns))
+                    presence[n]  += [1 - (1.0/(numPatterns)) * signal]
                 t+=0.01 # In seconds
 
     matshow(discrete_actv + presence, cmap=plt.cm.gray)
     show()
+
 def NEWactivationLevels(N, totalTime, Npatt, patt_range, toPlot=True):
     '''This function return the activation levels matrix with
     the level of activation of each neuron over time. This is returned as
@@ -79,9 +83,9 @@ def NEWactivationLevels(N, totalTime, Npatt, patt_range, toPlot=True):
         ends    = activations.times[shifted == 1]
         pattern_intervals += [zip(starts, ends)]
 
-
+    # Plot activation matrix
     if toPlot:
-        plotActivations(activations, times, pattern_presence[1])
+        plotActivations(activations, times, pattern_presence)
 
     return activations, pattern_intervals
 
