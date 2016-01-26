@@ -1,4 +1,5 @@
 from brian import *
+import random as rd
 import matplotlib.gridspec as gridspec
 
 # TODO
@@ -19,6 +20,7 @@ def plotActivations(values, times, pattern_presence):
     discrete_actv=[[] for i in range(N)]
     presence = [[] for i in range(20)]
     for n in range(N):
+        print(n)
         for ti in range(1,len(times)):
             t = times[ti-1]
             while t < times[ti]:
@@ -29,6 +31,60 @@ def plotActivations(values, times, pattern_presence):
 
     matshow(discrete_actv + presence, cmap=plt.cm.gray)
     show()
+def NEWactivationLevels(N, totalTime, Npatt, patt_range, toPlot=True):
+    '''This function return the activation levels matrix with
+    the level of activation of each neuron over time. This is returned as
+    a TimedArray. The list of the times in each the pattern in present is
+    returned as well'''
+    mean_dt   = 250e-3
+    mean_dpat = 1250e-3
+
+    patterns = rand(200,Npatt)
+    patt_ranges = [(1500,1700),(1700,1900),(1800,2000)]
+
+
+    # Time intervals
+    times = []
+    t = 0
+    while t < totalTime:
+        times.append(t)
+        t+= np.random.exponential(mean_dt)
+    times.append(totalTime)
+    len_t = len(times)
+
+    #creating patterns
+    pattern_times = [rd.sample(range(len_t), len_t//5) for i in range(Npatt)]
+    pattern_presence = [ [ 1 if j in pattern_times[i][:] else 0  for j in range(len_t)] for i in range(Npatt)]
+
+
+    # Random activation matrix - the last 21 rows are for pattern
+    #  identification (grey when present and white when not)
+    activations = rand(len_t, N)
+    pattern_presence = zeros(len_t)
+
+    # Add patterns to activation matrix, and also the identification at
+    #  the bottom
+    for patti, ptimeis in enumerate(pattern_presence):
+        for i in range(times):
+            if i in ptimeis:
+                activations[i, patt_ranges[patti][0]:patt_ranges[patti][1]] = patterns[:,patti]
+
+    # Make the activations' TimedArray
+    activations = TimedArray(activations,times)
+
+    # Transform pattern presence array into pattern intervals
+    pattern_intervals=[]
+    for i in range(Npatt):
+        starts  = activations.times[pattern_presence[i] == 1]
+        shifted = array([0] + list(pattern_presence[i])[:-1])
+        ends    = activations.times[shifted == 1]
+        pattern_intervals += [zip(starts, ends)]
+
+
+    if toPlot:
+        plotActivations(activations, times, pattern_presence[0])
+
+    return activations, pattern_intervals
 
 def activationLevels(N, totalTime, pattern, patt_range, toPlot=True):
     '''This function return the activation levels matrix with
@@ -155,7 +211,7 @@ def masquelier(simTime=1000*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau
     inputLayer.I = TimedArray((oscilAmp/2)*sin(2*pi*oscilFreq*dt*arange(float(simTime/dt)) - pi))
 
     # Get the activation levels' matrix and use as input current
-    acts, pattern_intervals = activationLevels(N, simTime/second, patt_act, patt_range, toPlot=False)
+    acts, pattern_intervals = activationLevels(N, simTime/second, patt_act, patt_range, toPlot=True)
     inputLayer.actValue = (acts*0.12 + 0.95)*Ithr # Affine mapping between activation and input
 
     # Connect the layers
@@ -174,7 +230,7 @@ def masquelier(simTime=1000*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau
 
     # Run the simulation
     # Runs for initialStep time
-    initialStep=350*second
+    initialStep=100*second
     run(initialStep, report='text')
 
     # Will run and calculate MI for each MIstep
@@ -255,4 +311,4 @@ def masquelier(simTime=1000*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau
     return inputLayer, MIs
 
 if __name__ == "__main__":
-    inputLayer, MI = masquelier(simTime = 800*second, MIstep=30*second, R = 9*10e6*ohm)
+    inputLayer, MI = masquelier(simTime = 3*second, MIstep=30*second, R = 7.9e6*ohm)
