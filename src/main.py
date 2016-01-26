@@ -20,14 +20,13 @@ def plotActivations(values, times, pattern_presence):
     discrete_actv=[[] for i in range(N)]
     presence = [[] for i in range(20)]
     for n in range(N):
-        print(n)
         for ti in range(1,len(times)):
             t = times[ti-1]
             while t < times[ti]:
                 discrete_actv[n] += [values[ti-1][n]]
                 if n in range(20):
                     presence[n] +=[pattern_presence[ti-1]]
-                t+=0.001 # In seconds
+                t+=0.01 # In seconds
 
     matshow(discrete_actv + presence, cmap=plt.cm.gray)
     show()
@@ -54,19 +53,19 @@ def NEWactivationLevels(N, totalTime, Npatt, patt_range, toPlot=True):
 
     #creating patterns
     pattern_times = [rd.sample(range(len_t), len_t//5) for i in range(Npatt)]
-    pattern_presence = [ [ 1 if j in pattern_times[i][:] else 0  for j in range(len_t)] for i in range(Npatt)]
+    pattern_presence = array([ [ 1 if j in pattern_times[i][:] else 0  for j in range(len_t)] for i in range(Npatt)])
 
 
     # Random activation matrix - the last 21 rows are for pattern
     #  identification (grey when present and white when not)
     activations = rand(len_t, N)
-    pattern_presence = zeros(len_t)
+    times=array(times)
 
     # Add patterns to activation matrix, and also the identification at
     #  the bottom
     for patti, ptimeis in enumerate(pattern_presence):
-        for i in range(times):
-            if i in ptimeis:
+        for i in range(len_t):
+            if ptimeis[i]:
                 activations[i, patt_ranges[patti][0]:patt_ranges[patti][1]] = patterns[:,patti]
 
     # Make the activations' TimedArray
@@ -82,7 +81,7 @@ def NEWactivationLevels(N, totalTime, Npatt, patt_range, toPlot=True):
 
 
     if toPlot:
-        plotActivations(activations, times, pattern_presence[0])
+        plotActivations(activations, times, pattern_presence[1])
 
     return activations, pattern_intervals
 
@@ -211,7 +210,7 @@ def masquelier(simTime=1000*second, N=2000, Vt=-54*mV, Vr=-60*mV, El=-70*mV, tau
     inputLayer.I = TimedArray((oscilAmp/2)*sin(2*pi*oscilFreq*dt*arange(float(simTime/dt)) - pi))
 
     # Get the activation levels' matrix and use as input current
-    acts, pattern_intervals = activationLevels(N, simTime/second, patt_act, patt_range, toPlot=True)
+    acts, pattern_intervals = NEWactivationLevels(N, simTime/second, 3, patt_range, toPlot=True)
     inputLayer.actValue = (acts*0.12 + 0.95)*Ithr # Affine mapping between activation and input
 
     # Connect the layers
